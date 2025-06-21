@@ -25,6 +25,6 @@ router.post('/reset-password', resetPassword); // Alternative route for resettin
 router.put('/profile', protect, updateUser); // Route for updating user
 router.get('/profile', protect, getProfile); // Route for getting user profile
 router.get('/me', protect, getProfile); // Alias for /profile to match frontend expectations
-router.post('/create-admin', protect, adminOnly, createAdmin); // Re-enable protect and adminOnly middleware after initial admin creation
+router.post('/create-admin', createAdmin); // Temporarily remove protect and adminOnly middleware to allow first admin creation
 
 module.exports = router;
