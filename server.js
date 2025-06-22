@@ -1,4 +1,3 @@
-
 const dotenv = require('dotenv');
 // Load environment variables first
 dotenv.config();
@@ -54,16 +53,15 @@ app.use(morgan('dev'));
 const allowedOrigins = [
     'http://localhost:3000',           // Local frontend development
     'http://localhost:5000',           // Vite default port
-    'https://coels-n-internal-journal-frontend.vercel.app', // Production frontend
-    'https://coels-n-internal-journal-frontend.vercel.app'  // Production frontend URL
+    'https://schoolofbusinessfrontend-aue7.vercel.app', // Production frontend (updated)
 ].filter(Boolean);
 
 console.log('Allowed CORS origins:', allowedOrigins);
 
 // Log the current environment
 console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('Backend URL:', process.env.NODE_ENV === 'production' ? 'https://coels-backend.onrender.com' : `http://localhost:${PORT}`);
-console.log('Frontend URL:', process.env.NODE_ENV === 'production' ? 'https://coels-n-internal-journal-frontend.vercel.app' : 'http://localhost:3000');
+console.log('Backend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofbusinessbackend.onrender.com' : `http://localhost:${PORT}`);
+console.log('Frontend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofbusinessfrontend-aue7.vercel.app' : 'http://localhost:3000');
 
 app.use((req, res, next) => {
     // Custom CORS handling to allow credentials: false for download routes
