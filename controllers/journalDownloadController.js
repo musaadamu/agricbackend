@@ -34,9 +34,16 @@ exports.downloadPdfFile = async (req, res) => {
         let downloadUrl = cloudinaryUrl;
 
         // Add fl_attachment flag to force download if not already present
-        if (cloudinaryUrl.includes('/upload/') && !cloudinaryUrl.includes('fl_attachment')) {
-            downloadUrl = cloudinaryUrl.replace('/upload/', '/upload/fl_attachment/');
+        if (cloudinaryUrl.includes('/schoolofbusiness/') && !cloudinaryUrl.includes('fl_attachment')) {
+            downloadUrl = cloudinaryUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
             console.log('Using Cloudinary URL with fl_attachment:', downloadUrl);
+        }
+
+        // Option 2: Use Cloudinary's download URL format
+        let downloadUrl2 = null;
+        if (cloudinaryUrl.includes('/schoolofbusiness/')) {
+            downloadUrl2 = cloudinaryUrl.replace('/schoolofbusiness/', '/download/');
+            console.log('Alternative Cloudinary download URL:', downloadUrl2);
         }
 
         // Sanitize filename for Content-Disposition header
@@ -96,9 +103,16 @@ exports.downloadDocxFile = async (req, res) => {
         let downloadUrl = cloudinaryUrl;
 
         // Add fl_attachment flag to force download if not already present
-        if (cloudinaryUrl.includes('/upload/') && !cloudinaryUrl.includes('fl_attachment')) {
-            downloadUrl = cloudinaryUrl.replace('/upload/', '/upload/fl_attachment/');
+        if (cloudinaryUrl.includes('/schoolofbusiness/') && !cloudinaryUrl.includes('fl_attachment')) {
+            downloadUrl = cloudinaryUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
             console.log('Using Cloudinary URL with fl_attachment:', downloadUrl);
+        }
+
+        // Option 2: Use Cloudinary's download URL format
+        let downloadUrl2 = null;
+        if (cloudinaryUrl.includes('/schoolofbusiness/')) {
+            downloadUrl2 = cloudinaryUrl.replace('/schoolofbusiness/', '/download/');
+            console.log('Alternative Cloudinary download URL:', downloadUrl2);
         }
 
         // Sanitize filename for Content-Disposition header

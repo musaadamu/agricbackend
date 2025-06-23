@@ -540,15 +540,15 @@ app.get('/check-file/:journalId/:fileType', async (req, res) => {
             let downloadUrl = cloudinaryUrl;
 
             // Option 1: Use fl_attachment flag
-            if (fileType === 'pdf' && cloudinaryUrl.includes('/upload/') && !cloudinaryUrl.includes('fl_attachment')) {
-                downloadUrl = cloudinaryUrl.replace('/upload/', '/upload/fl_attachment/');
+            if (fileType === 'pdf' && cloudinaryUrl.includes('/schoolofbusiness/') && !cloudinaryUrl.includes('fl_attachment')) {
+                downloadUrl = cloudinaryUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
                 console.log('Modified Cloudinary URL with fl_attachment:', downloadUrl);
             }
 
             // Option 2: Use Cloudinary's download URL format
             let downloadUrl2 = null;
-            if (fileType === 'pdf' && cloudinaryUrl.includes('/upload/')) {
-                downloadUrl2 = cloudinaryUrl.replace('/upload/', '/download/');
+            if (fileType === 'pdf' && cloudinaryUrl.includes('/schoolofbusiness/')) {
+                downloadUrl2 = cloudinaryUrl.replace('/schoolofbusiness/', '/download/');
                 console.log('Alternative Cloudinary download URL:', downloadUrl2);
             }
 

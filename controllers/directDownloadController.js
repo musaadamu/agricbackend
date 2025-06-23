@@ -40,8 +40,8 @@ exports.directDownloadPdf = async (req, res) => {
 
         // Use the fl_attachment URL format for better download experience
         let downloadUrl = cloudinaryUrl;
-        if (cloudinaryUrl.includes('/upload/') && !cloudinaryUrl.includes('fl_attachment')) {
-            downloadUrl = cloudinaryUrl.replace('/upload/', '/upload/fl_attachment/');
+        if (cloudinaryUrl.includes('/schoolofbusiness/') && !cloudinaryUrl.includes('fl_attachment')) {
+            downloadUrl = cloudinaryUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
             console.log('Using Cloudinary URL with fl_attachment:', downloadUrl);
         }
 
@@ -121,8 +121,8 @@ exports.directDownloadDocx = async (req, res) => {
 
         // Use the fl_attachment URL format for better download experience
         let downloadUrl = cloudinaryUrl;
-        if (cloudinaryUrl.includes('/upload/') && !cloudinaryUrl.includes('fl_attachment')) {
-            downloadUrl = cloudinaryUrl.replace('/upload/', '/upload/fl_attachment/');
+        if (cloudinaryUrl.includes('/schoolofbusiness/') && !cloudinaryUrl.includes('fl_attachment')) {
+            downloadUrl = cloudinaryUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
             console.log('Using Cloudinary URL with fl_attachment:', downloadUrl);
         }
 
