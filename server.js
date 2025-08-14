@@ -24,6 +24,7 @@ const journalRoutes = require('./routes/journalRoutes');
 const journalDownloadRoutes = require('./routes/journalDownloadRoutes');
 const authRoutes = require('./routes/authRoutes');
 const diagnosticRoutes = require('./routes/diagnosticRoutes');
+const seoRoutes = require('./routes/seoRoutes');
 
 // Validate required environment variables
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'PORT'];
@@ -131,6 +132,11 @@ app.use('/api/api/submissions', submissionDownloadRoutes);
 app.use('/api/diagnostic', diagnosticRoutes);
 // Also mount at root level for easier access
 app.use('/diagnostic', diagnosticRoutes);
+
+// Mount SEO routes
+app.use('/api/seo', seoRoutes);
+// Also mount at root level for easier access (for robots.txt, sitemap.xml)
+app.use('/', seoRoutes);
 
 // Serve static files from uploads directory
 // Handle the environment variable path correctly
