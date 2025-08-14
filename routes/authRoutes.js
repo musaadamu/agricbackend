@@ -13,18 +13,28 @@
 
 const express = require('express');
 const { register, login, logout, forgotPassword, resetPassword, updateUser, getProfile, createAdmin } = require('../controllers/authController');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { protect, adminOnly, trackFailedAttempts, isLockedOut, clearFailedAttempts } = require('../middleware/authMiddleware');
+const { validateUserRegistration, validateUserLogin, validatePasswordReset, validateNewPassword, validateProfileUpdate } = require('../middleware/validation');
+const { securityMonitor, SECURITY_EVENTS } = require('../middleware/securityMonitoring');
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/login', login);
+// Enhanced routes with security middleware
+router.post('/register', validateUserRegistration, register);
+router.post('/login', validateUserLogin, login);
 router.post('/logout', protect, logout);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword); // Route for resetting password with token in URL
-router.post('/reset-password', resetPassword); // Alternative route for resetting password with token in body
-router.put('/profile', protect, updateUser); // Route for updating user
-router.get('/profile', protect, getProfile); // Route for getting user profile
-router.get('/me', protect, getProfile); // Alias for /profile to match frontend expectations
-router.post('/create-admin', createAdmin); // Temporarily remove protect and adminOnly middleware to allow first admin creation
+router.post('/forgot-password', validatePasswordReset, forgotPassword);
+router.post('/reset-password/:token', validateNewPassword, resetPassword);
+router.post('/reset-password', validateNewPassword, resetPassword);
+router.put('/profile', protect, validateProfileUpdate, updateUser);
+router.get('/profile', protect, getProfile);
+router.get('/me', protect, getProfile);
+router.post('/create-admin', validateUserRegistration, createAdmin);
+
+// Security monitoring endpoint (admin only)
+router.get('/security-report', protect, adminOnly, (req, res) => {
+  const timeRange = req.query.hours ? parseInt(req.query.hours) * 60 * 60 * 1000 : undefined;
+  const report = securityMonitor.getSecurityReport(timeRange);
+  res.json(report);
+});
 
 module.exports = router;

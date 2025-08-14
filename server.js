@@ -17,6 +17,21 @@ const Journal = require('./models/Journal');
 // Middleware imports
 const { protect } = require('./middleware/authMiddleware');
 
+// Security middleware imports
+const {
+    helmetConfig,
+    generalLimiter,
+    authLimiter,
+    uploadLimiter,
+    passwordResetLimiter,
+    mongoSanitize,
+    hpp,
+    sanitizeInput,
+    securityLogger,
+    fileUploadSecurity,
+    adminIPWhitelist
+} = require('./middleware/security');
+
 // Route imports
 const submissionRoutes = require('./routes/submissionRoutes');
 const submissionDownloadRoutes = require('./routes/submissionDownloadRoutes');
@@ -42,10 +57,18 @@ const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
 console.log(`Environment: ${isProduction ? 'Production' : 'Development'}`);
 
-// Middleware setup
+// Security middleware setup (MUST be first)
+app.use(helmetConfig);
+app.use(securityLogger);
+app.use(generalLimiter);
+app.use(mongoSanitize());
+app.use(hpp());
+app.use(sanitizeInput);
+
+// Basic middleware setup
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
-app.use(morgan('dev'));
+app.use(morgan('combined')); // Use 'combined' for production logging
 
 // We'll handle multipart/form-data in the specific routes that need it
 // Removing global multer middleware to avoid conflicts with route-specific multer configurations
@@ -110,20 +133,22 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Mount routes with /api prefix
-app.use('/', authRoutes); // Auth routes at root path
-app.use('/api/auth', authRoutes); // Also mount auth routes at /api/auth for compatibility
-app.use('/api/api/auth', authRoutes); // Also mount auth routes at /api/auth for compatibility
+// Mount routes with security middleware
+// Auth routes with rate limiting
+app.use('/', authLimiter, authRoutes); // Auth routes at root path
+app.use('/api/auth', authLimiter, authRoutes); // Also mount auth routes at /api/auth for compatibility
+app.use('/api/api/auth', authLimiter, authRoutes); // Also mount auth routes at /api/auth for compatibility
 
-app.use('/api/journals', journalRoutes);
+// Journal routes with file upload security
+app.use('/api/journals', fileUploadSecurity, journalRoutes);
 app.use('/api/journals', journalDownloadRoutes);
-app.use('/journals', journalRoutes);
+app.use('/journals', fileUploadSecurity, journalRoutes);
 app.use('/journals', journalDownloadRoutes);
-app.use('/api/api/journals', journalRoutes);
+app.use('/api/api/journals', fileUploadSecurity, journalRoutes);
 app.use('/api/api/journals', journalDownloadRoutes);
 
-// Handle both /api/submissions and /api/api/submissions for backward compatibility
-app.use('/api/submissions', submissionRoutes);
+// Submission routes with upload rate limiting and file security
+app.use('/api/submissions', uploadLimiter, fileUploadSecurity, submissionRoutes);
 app.use('/api/submissions', submissionDownloadRoutes);
 app.use('/api/api/submissions', submissionRoutes);
 app.use('/api/api/submissions', submissionDownloadRoutes);
