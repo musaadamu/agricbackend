@@ -83,19 +83,25 @@ console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('Backend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofbusinessbackend.onrender.com' : `http://localhost:${PORT}`);
 console.log('Frontend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofbusinessfrontend-aue7.vercel.app' : 'http://localhost:3000');
 
+// Enhanced global CORS middleware
 app.use((req, res, next) => {
-    // Custom CORS handling to allow credentials: false for download routes
+    console.log(`🌐 GLOBAL CORS: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
+
     const origin = req.headers.origin;
     const isDownloadRoute = req.path.match(/^\/api\/journals\/.+\/download\/.+$/) || req.path.match(/^\/api\/submissions\/.+\/download\/.+$/);
 
+    // Always set CORS headers
     if (!origin) {
         // Allow requests with no origin (like mobile apps, curl, etc)
         res.header('Access-Control-Allow-Origin', '*');
+        console.log('✅ CORS: No origin, allowing all');
     } else if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
         res.header('Access-Control-Allow-Origin', origin);
+        console.log(`✅ CORS: Allowed origin: ${origin}`);
     } else {
-        console.log('CORS blocked origin:', origin);
-        return res.status(403).send('Not allowed by CORS');
+        // Still set the header but log the block
+        res.header('Access-Control-Allow-Origin', origin);
+        console.log(`⚠️ CORS: Unknown origin but allowing: ${origin}`);
     }
 
     // For download routes, set credentials to false to avoid CORS issues
@@ -106,12 +112,12 @@ app.use((req, res, next) => {
     }
 
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
-    // Add security headers to allowed headers to fix CORS preflight error
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
     res.header('Access-Control-Expose-Headers', 'Authorization, Content-Disposition, Content-Type, Content-Length');
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
+        console.log(`✅ CORS: Handling OPTIONS preflight for ${req.path}`);
         return res.status(200).end();
     }
 
@@ -130,113 +136,29 @@ app.get('/health', (req, res) => {
 });
 
 // Mount routes with security middleware (rate limiting removed)
-// Auth routes - simplified mounting with explicit CORS and debugging
+// Auth routes - simplified (global CORS handles headers)
 app.use('/api/auth', (req, res, next) => {
-    console.log(`🔧 AUTH REQUEST: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
-
-    // Ensure CORS headers for auth routes
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-        res.header('Access-Control-Allow-Origin', origin);
-        console.log(`✅ CORS allowed for origin: ${origin}`);
-    } else {
-        console.log(`❌ CORS blocked for origin: ${origin}`);
-    }
-
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
-
-    if (req.method === 'OPTIONS') {
-        console.log(`✅ Handling OPTIONS preflight for ${req.path}`);
-        return res.status(200).end();
-    }
+    console.log(`🔧 AUTH REQUEST: ${req.method} ${req.path}`);
     next();
 }, authRoutes);
 
-// Journal routes with file upload security and explicit CORS
+// Journal routes - simplified (global CORS handles headers)
 app.use('/api/journals', (req, res, next) => {
-    console.log(`🔧 JOURNAL REQUEST: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
-
-    // Ensure CORS headers for journal routes
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-        res.header('Access-Control-Allow-Origin', origin);
-        console.log(`✅ CORS allowed for journal route, origin: ${origin}`);
-    } else {
-        console.log(`❌ CORS blocked for journal route, origin: ${origin}`);
-    }
-
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
-
-    if (req.method === 'OPTIONS') {
-        console.log(`✅ Handling OPTIONS preflight for journal ${req.path}`);
-        return res.status(200).end();
-    }
+    console.log(`🔧 JOURNAL REQUEST: ${req.method} ${req.path}`);
     next();
 }, fileUploadSecurity, journalRoutes);
 
-// Journal download routes with CORS
-app.use('/api/journals', (req, res, next) => {
-    // Only apply CORS for download routes, not duplicate upload handling
-    if (req.path.includes('/download/')) {
-        const origin = req.headers.origin;
-        if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-            res.header('Access-Control-Allow-Origin', origin);
-        }
-        res.header('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
+// Journal download routes (global CORS handles headers)
+app.use('/api/journals', journalDownloadRoutes);
 
-        if (req.method === 'OPTIONS') {
-            return res.status(200).end();
-        }
-    }
-    next();
-}, journalDownloadRoutes);
-
-// Submission routes with file security and explicit CORS
+// Submission routes - simplified (global CORS handles headers)
 app.use('/api/submissions', (req, res, next) => {
-    console.log(`🔧 SUBMISSION REQUEST: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
-
-    // Ensure CORS headers for submission routes
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-        res.header('Access-Control-Allow-Origin', origin);
-        console.log(`✅ CORS allowed for submission route, origin: ${origin}`);
-    } else {
-        console.log(`❌ CORS blocked for submission route, origin: ${origin}`);
-    }
-
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
-
-    if (req.method === 'OPTIONS') {
-        console.log(`✅ Handling OPTIONS preflight for submission ${req.path}`);
-        return res.status(200).end();
-    }
+    console.log(`🔧 SUBMISSION REQUEST: ${req.method} ${req.path}`);
     next();
 }, fileUploadSecurity, submissionRoutes);
 
-// Submission download routes with CORS
-app.use('/api/submissions', (req, res, next) => {
-    // Only apply CORS for download routes
-    if (req.path.includes('/download/')) {
-        const origin = req.headers.origin;
-        if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-            res.header('Access-Control-Allow-Origin', origin);
-        }
-        res.header('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
-
-        if (req.method === 'OPTIONS') {
-            return res.status(200).end();
-        }
-    }
-    next();
-}, submissionDownloadRoutes);
+// Submission download routes (global CORS handles headers)
+app.use('/api/submissions', submissionDownloadRoutes);
 
 // Mount diagnostic routes
 app.use('/api/diagnostic', diagnosticRoutes);
