@@ -76,7 +76,8 @@ const allowedOrigins = [
     'https://www.nijobed.com.ng',      // Production frontend (current)
 ].filter(Boolean);
 
-console.log('Allowed CORS origins:', allowedOrigins);
+console.log('🚀 DELETE FIX v1.2 - Allowed CORS origins:', allowedOrigins);
+console.log('🔧 Global CORS middleware active with DELETE support');
 
 // Log the current environment
 console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -111,14 +112,22 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
     }
 
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
     res.header('Access-Control-Expose-Headers', 'Authorization, Content-Disposition, Content-Type, Content-Length');
+
+    // Log the headers being set for debugging
+    console.log(`🔧 CORS Headers Set: Origin=${res.getHeader('Access-Control-Allow-Origin')}, Methods=${res.getHeader('Access-Control-Allow-Methods')}`);
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
         console.log(`✅ CORS: Handling OPTIONS preflight for ${req.path}`);
         return res.status(200).end();
+    }
+
+    // Log DELETE requests specifically
+    if (req.method === 'DELETE') {
+        console.log(`🗑️ DELETE request for ${req.path} with CORS headers set`);
     }
 
     next();
