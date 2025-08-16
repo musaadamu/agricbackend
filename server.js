@@ -130,10 +130,29 @@ app.get('/health', (req, res) => {
 });
 
 // Mount routes with security middleware (rate limiting removed)
-// Auth routes
-app.use('/', authRoutes); // Auth routes at root path
-app.use('/api/auth', authRoutes); // Also mount auth routes at /api/auth for compatibility
-app.use('/api/api/auth', authRoutes); // Also mount auth routes at /api/auth for compatibility
+// Auth routes - simplified mounting with explicit CORS and debugging
+app.use('/api/auth', (req, res, next) => {
+    console.log(`🔧 AUTH REQUEST: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
+
+    // Ensure CORS headers for auth routes
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        res.header('Access-Control-Allow-Origin', origin);
+        console.log(`✅ CORS allowed for origin: ${origin}`);
+    } else {
+        console.log(`❌ CORS blocked for origin: ${origin}`);
+    }
+
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
+
+    if (req.method === 'OPTIONS') {
+        console.log(`✅ Handling OPTIONS preflight for ${req.path}`);
+        return res.status(200).end();
+    }
+    next();
+}, authRoutes);
 
 // Journal routes with file upload security
 app.use('/api/journals', fileUploadSecurity, journalRoutes);

@@ -18,9 +18,9 @@ const { validateUserRegistration, validateUserLogin, validatePasswordReset, vali
 const { securityMonitor, SECURITY_EVENTS } = require('../middleware/securityMonitoring');
 const router = express.Router();
 
-// Enhanced routes with security middleware
-router.post('/register', validateUserRegistration, register);
-router.post('/login', validateUserLogin, login);
+// Enhanced routes with security middleware (temporarily simplified for debugging)
+router.post('/register', register);
+router.post('/login', login);
 router.post('/logout', protect, logout);
 router.post('/forgot-password', validatePasswordReset, forgotPassword);
 router.post('/reset-password/:token', validateNewPassword, resetPassword);
