@@ -154,19 +154,89 @@ app.use('/api/auth', (req, res, next) => {
     next();
 }, authRoutes);
 
-// Journal routes with file upload security
-app.use('/api/journals', fileUploadSecurity, journalRoutes);
-app.use('/api/journals', journalDownloadRoutes);
-app.use('/journals', fileUploadSecurity, journalRoutes);
-app.use('/journals', journalDownloadRoutes);
-app.use('/api/api/journals', fileUploadSecurity, journalRoutes);
-app.use('/api/api/journals', journalDownloadRoutes);
+// Journal routes with file upload security and explicit CORS
+app.use('/api/journals', (req, res, next) => {
+    console.log(`🔧 JOURNAL REQUEST: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
 
-// Submission routes with file security (rate limiting removed)
-app.use('/api/submissions', fileUploadSecurity, submissionRoutes);
-app.use('/api/submissions', submissionDownloadRoutes);
-app.use('/api/api/submissions', submissionRoutes);
-app.use('/api/api/submissions', submissionDownloadRoutes);
+    // Ensure CORS headers for journal routes
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        res.header('Access-Control-Allow-Origin', origin);
+        console.log(`✅ CORS allowed for journal route, origin: ${origin}`);
+    } else {
+        console.log(`❌ CORS blocked for journal route, origin: ${origin}`);
+    }
+
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
+
+    if (req.method === 'OPTIONS') {
+        console.log(`✅ Handling OPTIONS preflight for journal ${req.path}`);
+        return res.status(200).end();
+    }
+    next();
+}, fileUploadSecurity, journalRoutes);
+
+// Journal download routes with CORS
+app.use('/api/journals', (req, res, next) => {
+    // Only apply CORS for download routes, not duplicate upload handling
+    if (req.path.includes('/download/')) {
+        const origin = req.headers.origin;
+        if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+            res.header('Access-Control-Allow-Origin', origin);
+        }
+        res.header('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
+
+        if (req.method === 'OPTIONS') {
+            return res.status(200).end();
+        }
+    }
+    next();
+}, journalDownloadRoutes);
+
+// Submission routes with file security and explicit CORS
+app.use('/api/submissions', (req, res, next) => {
+    console.log(`🔧 SUBMISSION REQUEST: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
+
+    // Ensure CORS headers for submission routes
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        res.header('Access-Control-Allow-Origin', origin);
+        console.log(`✅ CORS allowed for submission route, origin: ${origin}`);
+    } else {
+        console.log(`❌ CORS blocked for submission route, origin: ${origin}`);
+    }
+
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
+
+    if (req.method === 'OPTIONS') {
+        console.log(`✅ Handling OPTIONS preflight for submission ${req.path}`);
+        return res.status(200).end();
+    }
+    next();
+}, fileUploadSecurity, submissionRoutes);
+
+// Submission download routes with CORS
+app.use('/api/submissions', (req, res, next) => {
+    // Only apply CORS for download routes
+    if (req.path.includes('/download/')) {
+        const origin = req.headers.origin;
+        if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+            res.header('Access-Control-Allow-Origin', origin);
+        }
+        res.header('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
+
+        if (req.method === 'OPTIONS') {
+            return res.status(200).end();
+        }
+    }
+    next();
+}, submissionDownloadRoutes);
 
 // Mount diagnostic routes
 app.use('/api/diagnostic', diagnosticRoutes);
