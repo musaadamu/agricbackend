@@ -17,13 +17,9 @@ const Journal = require('./models/Journal');
 // Middleware imports
 const { protect } = require('./middleware/authMiddleware');
 
-// Security middleware imports
+// Security middleware imports (rate limiting removed)
 const {
     helmetConfig,
-    generalLimiter,
-    authLimiter,
-    uploadLimiter,
-    passwordResetLimiter,
     mongoSanitize,
     hpp,
     sanitizeInput,
@@ -57,10 +53,9 @@ const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
 console.log(`Environment: ${isProduction ? 'Production' : 'Development'}`);
 
-// Security middleware setup (MUST be first)
+// Security middleware setup (MUST be first) - rate limiting removed
 app.use(helmetConfig);
 app.use(securityLogger);
-app.use(generalLimiter);
 app.use(mongoSanitize());
 app.use(hpp());
 app.use(sanitizeInput);
@@ -77,7 +72,8 @@ app.use(morgan('combined')); // Use 'combined' for production logging
 const allowedOrigins = [
     'http://localhost:3000',           // Local frontend development
     'http://localhost:5000',           // Vite default port
-    'https://schoolofbusinessfrontend-aue7.vercel.app', // Production frontend (updated)
+    'https://schoolofbusinessfrontend-aue7.vercel.app', // Production frontend (old)
+    'https://www.nijobed.com.ng',      // Production frontend (current)
 ].filter(Boolean);
 
 console.log('Allowed CORS origins:', allowedOrigins);
@@ -110,8 +106,8 @@ app.use((req, res, next) => {
     }
 
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD');
-    // Add 'cache-control' to allowed headers to fix CORS preflight error
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control');
+    // Add security headers to allowed headers to fix CORS preflight error
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, cache-control, pragma, expires, x-requested-with');
     res.header('Access-Control-Expose-Headers', 'Authorization, Content-Disposition, Content-Type, Content-Length');
 
     // Handle preflight requests
@@ -133,11 +129,11 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Mount routes with security middleware
-// Auth routes with rate limiting
-app.use('/', authLimiter, authRoutes); // Auth routes at root path
-app.use('/api/auth', authLimiter, authRoutes); // Also mount auth routes at /api/auth for compatibility
-app.use('/api/api/auth', authLimiter, authRoutes); // Also mount auth routes at /api/auth for compatibility
+// Mount routes with security middleware (rate limiting removed)
+// Auth routes
+app.use('/', authRoutes); // Auth routes at root path
+app.use('/api/auth', authRoutes); // Also mount auth routes at /api/auth for compatibility
+app.use('/api/api/auth', authRoutes); // Also mount auth routes at /api/auth for compatibility
 
 // Journal routes with file upload security
 app.use('/api/journals', fileUploadSecurity, journalRoutes);
@@ -147,8 +143,8 @@ app.use('/journals', journalDownloadRoutes);
 app.use('/api/api/journals', fileUploadSecurity, journalRoutes);
 app.use('/api/api/journals', journalDownloadRoutes);
 
-// Submission routes with upload rate limiting and file security
-app.use('/api/submissions', uploadLimiter, fileUploadSecurity, submissionRoutes);
+// Submission routes with file security (rate limiting removed)
+app.use('/api/submissions', fileUploadSecurity, submissionRoutes);
 app.use('/api/submissions', submissionDownloadRoutes);
 app.use('/api/api/submissions', submissionRoutes);
 app.use('/api/api/submissions', submissionDownloadRoutes);

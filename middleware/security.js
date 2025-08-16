@@ -1,57 +1,11 @@
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+// const rateLimit = require('express-rate-limit'); // REMOVED
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss');
 const hpp = require('hpp');
 
-// Rate limiting configurations
-const createRateLimit = (windowMs, max, message) => {
-  return rateLimit({
-    windowMs,
-    max,
-    message: {
-      error: message,
-      retryAfter: Math.ceil(windowMs / 1000)
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (req, res) => {
-      console.log(`Rate limit exceeded for IP: ${req.ip}, Path: ${req.path}`);
-      res.status(429).json({
-        error: message,
-        retryAfter: Math.ceil(windowMs / 1000)
-      });
-    }
-  });
-};
-
-// General rate limiting
-const generalLimiter = createRateLimit(
-  15 * 60 * 1000, // 15 minutes
-  100, // limit each IP to 100 requests per windowMs
-  'Too many requests from this IP, please try again later.'
-);
-
-// Strict rate limiting for authentication endpoints
-const authLimiter = createRateLimit(
-  15 * 60 * 1000, // 15 minutes
-  5, // limit each IP to 5 requests per windowMs
-  'Too many authentication attempts, please try again later.'
-);
-
-// Rate limiting for file uploads
-const uploadLimiter = createRateLimit(
-  60 * 60 * 1000, // 1 hour
-  10, // limit each IP to 10 uploads per hour
-  'Too many file uploads, please try again later.'
-);
-
-// Rate limiting for password reset
-const passwordResetLimiter = createRateLimit(
-  60 * 60 * 1000, // 1 hour
-  3, // limit each IP to 3 password reset attempts per hour
-  'Too many password reset attempts, please try again later.'
-);
+// Rate limiting configurations REMOVED
+// All rate limiting has been disabled per user request
 
 // Helmet configuration for security headers
 const helmetConfig = helmet({
@@ -254,10 +208,7 @@ const adminIPWhitelist = (req, res, next) => {
 
 module.exports = {
   helmetConfig,
-  generalLimiter,
-  authLimiter,
-  uploadLimiter,
-  passwordResetLimiter,
+  // Rate limiters removed
   mongoSanitize,
   hpp,
   sanitizeInput,
