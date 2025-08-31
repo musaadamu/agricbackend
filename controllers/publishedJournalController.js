@@ -1057,6 +1057,298 @@ const advancedSearchPublishedJournals = async (req, res) => {
     }
 };
 
+// Get all journals for admin management
+const getAllJournalsForAdmin = async (req, res) => {
+    try {
+        const {
+            page = 1,
+            limit = 20,
+            search,
+            year,
+            quarter,
+            status
+        } = req.query;
+
+        const query = {};
+
+        // Add filters
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { abstract: { $regex: search, $options: 'i' } },
+                { authors: { $in: [new RegExp(search, 'i')] } }
+            ];
+        }
+
+        if (year) {
+            query.volume_year = parseInt(year);
+        }
+
+        if (quarter) {
+            query.volume_quarter = parseInt(quarter);
+        }
+
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        const journals = await PublishedJournal.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .populate('submitted_by', 'name email');
+
+        const total = await PublishedJournal.countDocuments(query);
+
+        res.json({
+            success: true,
+            data: {
+                journals,
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(total / parseInt(limit)),
+                total
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching journals for admin:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching journals',
+            error: error.message
+        });
+    }
+};
+
+// Admin direct upload
+const adminUploadJournal = async (req, res) => {
+    try {
+        const {
+            title,
+            abstract,
+            authors,
+            keywords,
+            volume_year,
+            volume_quarter,
+            submitted_by,
+            status = 'published'
+        } = req.body;
+
+        // Parse JSON strings
+        const parsedAuthors = typeof authors === 'string' ? JSON.parse(authors) : authors;
+        const parsedKeywords = typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
+
+        const journalData = {
+            title,
+            abstract,
+            authors: parsedAuthors,
+            keywords: parsedKeywords,
+            volume_year: parseInt(volume_year),
+            volume_quarter: parseInt(volume_quarter),
+            submitted_by,
+            status,
+            published_date: status === 'published' ? new Date() : null
+        };
+
+        // Handle file upload
+        if (req.file) {
+            journalData.manuscript_url = req.file.path;
+            journalData.manuscript_filename = req.file.filename;
+        }
+
+        const journal = new PublishedJournal(journalData);
+        await journal.save();
+
+        res.status(201).json({
+            success: true,
+            message: 'Journal uploaded successfully',
+            data: { journal }
+        });
+    } catch (error) {
+        console.error('Error in admin upload:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error uploading journal',
+            error: error.message
+        });
+    }
+};
+
+// Bulk delete journals
+const bulkDeleteJournals = async (req, res) => {
+    try {
+        const { journalIds } = req.body;
+
+        if (!journalIds || !Array.isArray(journalIds) || journalIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Journal IDs are required'
+            });
+        }
+
+        const result = await PublishedJournal.deleteMany({
+            _id: { $in: journalIds }
+        });
+
+        res.json({
+            success: true,
+            message: `Successfully deleted ${result.deletedCount} journal(s)`,
+            data: { deletedCount: result.deletedCount }
+        });
+    } catch (error) {
+        console.error('Error in bulk delete:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting journals',
+            error: error.message
+        });
+    }
+};
+
+// Bulk archive journals
+const bulkArchiveJournals = async (req, res) => {
+    try {
+        const { journalIds } = req.body;
+
+        if (!journalIds || !Array.isArray(journalIds) || journalIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Journal IDs are required'
+            });
+        }
+
+        const result = await PublishedJournal.updateMany(
+            { _id: { $in: journalIds } },
+            { status: 'archived', archived_date: new Date() }
+        );
+
+        res.json({
+            success: true,
+            message: `Successfully archived ${result.modifiedCount} journal(s)`,
+            data: { modifiedCount: result.modifiedCount }
+        });
+    } catch (error) {
+        console.error('Error in bulk archive:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error archiving journals',
+            error: error.message
+        });
+    }
+};
+
+// Bulk publish journals
+const bulkPublishJournals = async (req, res) => {
+    try {
+        const { journalIds } = req.body;
+
+        if (!journalIds || !Array.isArray(journalIds) || journalIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Journal IDs are required'
+            });
+        }
+
+        const result = await PublishedJournal.updateMany(
+            { _id: { $in: journalIds } },
+            { status: 'published', published_date: new Date() }
+        );
+
+        res.json({
+            success: true,
+            message: `Successfully published ${result.modifiedCount} journal(s)`,
+            data: { modifiedCount: result.modifiedCount }
+        });
+    } catch (error) {
+        console.error('Error in bulk publish:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error publishing journals',
+            error: error.message
+        });
+    }
+};
+
+// Export journals
+const exportJournals = async (req, res) => {
+    try {
+        const { journalIds, search, year, quarter, status } = req.query;
+
+        const query = {};
+
+        // If specific journal IDs are provided
+        if (journalIds) {
+            query._id = { $in: journalIds.split(',') };
+        } else {
+            // Apply filters for export all
+            if (search) {
+                query.$or = [
+                    { title: { $regex: search, $options: 'i' } },
+                    { abstract: { $regex: search, $options: 'i' } },
+                    { authors: { $in: [new RegExp(search, 'i')] } }
+                ];
+            }
+
+            if (year) {
+                query.volume_year = parseInt(year);
+            }
+
+            if (quarter) {
+                query.volume_quarter = parseInt(quarter);
+            }
+
+            if (status && status !== 'all') {
+                query.status = status;
+            }
+        }
+
+        const journals = await PublishedJournal.find(query)
+            .sort({ createdAt: -1 })
+            .populate('submitted_by', 'name email');
+
+        // Create CSV content
+        const csvHeaders = [
+            'Title',
+            'Authors',
+            'Abstract',
+            'Keywords',
+            'Volume Year',
+            'Volume Quarter',
+            'Status',
+            'Submitted By',
+            'Created Date',
+            'Published Date'
+        ];
+
+        const csvRows = journals.map(journal => [
+            `"${journal.title || ''}"`,
+            `"${journal.authors?.join(', ') || ''}"`,
+            `"${journal.abstract?.substring(0, 100) || ''}..."`,
+            `"${journal.keywords?.join(', ') || ''}"`,
+            journal.volume_year || '',
+            journal.volume_quarter || '',
+            journal.status || '',
+            journal.submitted_by?.name || journal.submitted_by || '',
+            journal.createdAt ? new Date(journal.createdAt).toLocaleDateString() : '',
+            journal.published_date ? new Date(journal.published_date).toLocaleDateString() : ''
+        ]);
+
+        const csvContent = [csvHeaders.join(','), ...csvRows.map(row => row.join(','))].join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="journals-export-${new Date().toISOString().split('T')[0]}.csv"`);
+        res.send(csvContent);
+    } catch (error) {
+        console.error('Error in export:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error exporting journals',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getAllPublishedJournals,
     getArchivedJournals,
@@ -1074,5 +1366,11 @@ module.exports = {
     directDownloadPublishedJournalPdf,
     directDownloadPublishedJournalDocx,
     getPublishedJournalStats,
-    advancedSearchPublishedJournals
+    advancedSearchPublishedJournals,
+    getAllJournalsForAdmin,
+    adminUploadJournal,
+    bulkDeleteJournals,
+    bulkArchiveJournals,
+    bulkPublishJournals,
+    exportJournals
 };

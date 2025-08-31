@@ -16,7 +16,13 @@ const {
     directDownloadPublishedJournalPdf,
     directDownloadPublishedJournalDocx,
     getPublishedJournalStats,
-    advancedSearchPublishedJournals
+    advancedSearchPublishedJournals,
+    getAllJournalsForAdmin,
+    adminUploadJournal,
+    bulkDeleteJournals,
+    bulkArchiveJournals,
+    bulkPublishJournals,
+    exportJournals
 } = require('../controllers/publishedJournalController');
 
 // Middleware for authentication (you can implement this based on your auth system)
@@ -52,7 +58,7 @@ router.get('/:id/direct-download/docx', directDownloadPublishedJournalDocx);
 
 // Statistics and search routes
 router.get('/stats/overview', getPublishedJournalStats);
-router.get('/search/advanced', advancedSearchPublishedJournals;
+router.get('/search/advanced', advancedSearchPublishedJournals);
 
 // Protected routes - require authentication
 
@@ -63,6 +69,20 @@ router.post('/submit', authenticateUser, upload.single('manuscript'), submitJour
 
 // GET /api/published-journals/pending - Get journals pending review
 router.get('/admin/pending', authenticateAdmin, getPendingReview);
+
+// GET /api/published-journals/admin/all - Get all journals for admin management
+router.get('/admin/all', authenticateAdmin, getAllJournalsForAdmin);
+
+// POST /api/published-journals/admin/upload - Admin direct upload
+router.post('/admin/upload', authenticateAdmin, upload.single('manuscript'), adminUploadJournal);
+
+// Bulk operations
+router.post('/admin/bulk-delete', authenticateAdmin, bulkDeleteJournals);
+router.post('/admin/bulk-archive', authenticateAdmin, bulkArchiveJournals);
+router.post('/admin/bulk-publish', authenticateAdmin, bulkPublishJournals);
+
+// Export functionality
+router.get('/admin/export', authenticateAdmin, exportJournals);
 
 // PUT /api/published-journals/:id - Update journal status/details
 router.put('/:id', authenticateAdmin, updateJournalStatus);
