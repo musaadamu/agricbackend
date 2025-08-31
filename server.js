@@ -36,13 +36,22 @@ const journalDownloadRoutes = require('./routes/journalDownloadRoutes');
 const authRoutes = require('./routes/authRoutes');
 const diagnosticRoutes = require('./routes/diagnosticRoutes');
 const seoRoutes = require('./routes/seoRoutes');
+const publishedJournalRoutes = require('./routes/publishedJournalRoutes');
 
 // Validate required environment variables
-const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'PORT'];
+const requiredEnvVars = [
+    'MONGODB_URI',
+    'JWT_SECRET',
+    'PORT',
+    'CLOUDINARY_CLOUD_NAME',
+    'CLOUDINARY_API_KEY',
+    'CLOUDINARY_API_SECRET'
+];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
     console.error('❌ Missing required environment variables:', missingEnvVars.join(', '));
+    console.error('Please check your .env file and ensure all required variables are set');
     process.exit(1);
 }
 
@@ -72,8 +81,8 @@ app.use(morgan('combined')); // Use 'combined' for production logging
 const allowedOrigins = [
     'http://localhost:3000',           // Local frontend development
     'http://localhost:5000',           // Vite default port
-    'https://schoolofbusinessfrontend-aue7.vercel.app', // Production frontend (old)
-    'https://www.nijobed.com.ng',      // Production frontend (current)
+    'https://schoolofagricbackend-oyk8eceva-musa-adamus-projects.vercel.app', // Production frontend (Vercel)
+    'https://schoolofagricfrontend.onrender.com', // Backend deployment URL (this backend on Render)
 ].filter(Boolean);
 
 console.log('🚀 DELETE FIX v1.2 - Allowed CORS origins:', allowedOrigins);
@@ -81,8 +90,8 @@ console.log('🔧 Global CORS middleware active with DELETE support');
 
 // Log the current environment
 console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('Backend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofbusinessbackend.onrender.com' : `http://localhost:${PORT}`);
-console.log('Frontend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofbusinessfrontend-aue7.vercel.app' : 'http://localhost:3000');
+console.log('Backend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofagricfrontend.onrender.com' : `http://localhost:${PORT}`);
+console.log('Frontend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofagricbackend-oyk8eceva-musa-adamus-projects.vercel.app' : 'http://localhost:3000');
 
 // Enhanced global CORS middleware
 app.use((req, res, next) => {
@@ -168,6 +177,12 @@ app.use('/api/submissions', (req, res, next) => {
 
 // Submission download routes (global CORS handles headers)
 app.use('/api/submissions', submissionDownloadRoutes);
+
+// Published Journal routes - new publication system
+app.use('/api/published-journals', (req, res, next) => {
+    console.log(`🔧 PUBLISHED JOURNAL REQUEST: ${req.method} ${req.path}`);
+    next();
+}, fileUploadSecurity, publishedJournalRoutes);
 
 // Mount diagnostic routes
 app.use('/api/diagnostic', diagnosticRoutes);
@@ -587,15 +602,16 @@ app.get('/check-file/:journalId/:fileType', async (req, res) => {
             let downloadUrl = cloudinaryUrl;
 
             // Option 1: Use fl_attachment flag
-            if (fileType === 'pdf' && cloudinaryUrl.includes('/schoolofbusiness/') && !cloudinaryUrl.includes('fl_attachment')) {
-                downloadUrl = cloudinaryUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
+            const cloudinaryFolder = process.env.CLOUDINARY_FOLDER || 'agricjournal';
+            if (fileType === 'pdf' && cloudinaryUrl.includes(`/${cloudinaryFolder}/`) && !cloudinaryUrl.includes('fl_attachment')) {
+                downloadUrl = cloudinaryUrl.replace(`/${cloudinaryFolder}/`, `/${cloudinaryFolder}/fl_attachment/`);
                 console.log('Modified Cloudinary URL with fl_attachment:', downloadUrl);
             }
 
             // Option 2: Use Cloudinary's download URL format
             let downloadUrl2 = null;
-            if (fileType === 'pdf' && cloudinaryUrl.includes('/schoolofbusiness/')) {
-                downloadUrl2 = cloudinaryUrl.replace('/schoolofbusiness/', '/download/');
+            if (fileType === 'pdf' && cloudinaryUrl.includes(`/${cloudinaryFolder}/`)) {
+                downloadUrl2 = cloudinaryUrl.replace(`/${cloudinaryFolder}/`, '/download/');
                 console.log('Alternative Cloudinary download URL:', downloadUrl2);
             }
 
@@ -792,12 +808,16 @@ const connectDB = async () => {
 };
 
 // Graceful shutdown handling
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     process.env.SHUTTING_DOWN = true;
-    mongoose.connection.close(() => {
+    try {
+        await mongoose.connection.close();
         console.log('MongoDB connection closed due to app termination');
         process.exit(0);
-    });
+    } catch (error) {
+        console.error('Error closing MongoDB connection:', error);
+        process.exit(1);
+    }
 });
 
 // Enhanced error handling
@@ -815,5 +835,31 @@ app.use((err, req, res, next) => {
     }
 });
 
-// Start the server
-connectDB();
+// Start the server with graceful MongoDB handling
+const startServer = async () => {
+    try {
+        await connectDB();
+        console.log('✅ MongoDB connected successfully');
+    } catch (error) {
+        console.error('❌ MongoDB connection failed:', error.message);
+        console.log('⚠️  Starting server without MongoDB for testing...');
+    }
+
+    // Start the server regardless of MongoDB connection
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`Backend URL: ${process.env.NODE_ENV === 'production' ? process.env.BACKEND_URL : `http://localhost:${PORT}`}`);
+        console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+        console.log('📡 Server is ready to accept requests');
+        console.log('');
+        console.log('🔗 Available endpoints:');
+        console.log('   - GET  /api/journals');
+        console.log('   - POST /api/journals');
+        console.log('   - GET  /api/published-journals');
+        console.log('   - POST /api/published-journals/submit');
+        console.log('');
+    });
+};
+
+startServer();

@@ -8,12 +8,20 @@ const PDFDocument = require("pdfkit");
 const mongoose = require("mongoose");
 const cloudinary = require("cloudinary").v2;
 
-// Configure Cloudinary
+// Configure Cloudinary - using environment variables only
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: process.env.CLOUDINARY_SECURE === 'true',
 });
+
+// Validate Cloudinary configuration
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.error('❌ Missing Cloudinary environment variables');
+    console.error('Required: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET');
+    process.exit(1);
+}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -305,7 +313,7 @@ exports.uploadSubmission = async (req, res) => {
 
             docxUploadResult = await cloudinary.uploader.upload(docxFilePath, {
                 resource_type: 'raw',
-                folder: 'schoolofbusiness',
+                folder: process.env.CLOUDINARY_FOLDER || 'agricjournal',
                 public_id: `${Date.now()}-${file.filename}`,
                 use_filename: true,
                 unique_filename: false,
@@ -334,7 +342,7 @@ exports.uploadSubmission = async (req, res) => {
 
             pdfUploadResult = await cloudinary.uploader.upload(pdfFilePath, {
                 resource_type: 'raw',
-                folder: 'schoolofbusiness',
+                folder: process.env.CLOUDINARY_FOLDER || 'agricjournal',
                 public_id: `${Date.now()}-${path.basename(pdfFilePath)}`,
                 use_filename: true,
                 unique_filename: false,

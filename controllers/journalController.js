@@ -7,15 +7,21 @@ const mammoth = require("mammoth");
 const PDFDocument = require("pdfkit");
 const mongoose = require("mongoose");
 const cloudinary = require('cloudinary').v2;
-const { deleteFile } = require("../utils/googleDrive");
 
-// Configure Cloudinary
+// Configure Cloudinary - using environment variables only
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dxnp54kf2',
-  api_key: process.env.CLOUDINARY_API_KEY || '969391468651285',
-  api_secret: process.env.CLOUDINARY_API_SECRET || 'Q0VIOl0m3JrPx9dj7PwYE8uW6n4',
-  secure: true,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: process.env.CLOUDINARY_SECURE === 'true',
 });
+
+// Validate Cloudinary configuration
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.error('❌ Missing Cloudinary environment variables');
+    console.error('Required: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET');
+    process.exit(1);
+}
 
 // Helper function to get the upload directory path
 const getUploadDir = () => {
@@ -221,7 +227,7 @@ exports.uploadJournal = async (req, res) => {
             const pdfStats = await fsPromises.stat(pdfFile.path);
             console.log('PDF file exists and is ready for upload, size:', pdfStats.size, 'bytes');
             pdfUploadResult = await cloudinary.uploader.upload(pdfFile.path, {
-                folder: 'schoolofbusiness',
+                folder: process.env.CLOUDINARY_FOLDER || 'agricjournal',
                 resource_type: 'raw',
                 public_id: `${Date.now()}-${pdfFile.filename}`,
                 use_filename: true,
@@ -248,7 +254,7 @@ exports.uploadJournal = async (req, res) => {
             const docxStats = await fsPromises.stat(docxFile.path);
             console.log('DOCX file exists and is ready for upload, size:', docxStats.size, 'bytes');
             docxUploadResult = await cloudinary.uploader.upload(docxFile.path, {
-                folder: 'schoolofbusiness',
+                folder: process.env.CLOUDINARY_FOLDER || 'agricjournal',
                 resource_type: 'raw',
                 public_id: `${Date.now()}-${docxFile.filename}`,
                 use_filename: true,
@@ -338,11 +344,11 @@ exports.uploadJournal = async (req, res) => {
             // Determine upload status message
             let uploadMessage = "Journal uploaded successfully";
             if (pdfUploadError && docxUploadError) {
-                uploadMessage = "Journal uploaded successfully but Google Drive uploads failed";
+                uploadMessage = "Journal uploaded successfully but Cloudinary uploads failed";
             } else if (pdfUploadError) {
-                uploadMessage = "Journal uploaded successfully but PDF Google Drive upload failed";
+                uploadMessage = "Journal uploaded successfully but PDF Cloudinary upload failed";
             } else if (docxUploadError) {
-                uploadMessage = "Journal uploaded successfully but DOCX Google Drive upload failed";
+                uploadMessage = "Journal uploaded successfully but DOCX Cloudinary upload failed";
             }
 
             // Send response after successful save
@@ -354,12 +360,12 @@ exports.uploadJournal = async (req, res) => {
                     abstract: journal.abstract,
                     authors: journal.authors,
                     status: journal.status,
-                    hasDocx: !!journal.docxFileId,
-                    hasPdf: !!journal.pdfFileId,
-                    docxLink: journal.docxWebViewLink || null,
-                    pdfLink: journal.pdfWebViewLink || null,
-                    googleDriveUploadFailed: !!(pdfUploadError || docxUploadError),
-                    googleDriveError: pdfUploadError || docxUploadError ?
+                    hasDocx: !!journal.docxCloudinaryUrl,
+                    hasPdf: !!journal.pdfCloudinaryUrl,
+                    docxLink: journal.docxCloudinaryUrl || null,
+                    pdfLink: journal.pdfCloudinaryUrl || null,
+                    cloudinaryUploadFailed: !!(pdfUploadError || docxUploadError),
+                    cloudinaryError: pdfUploadError || docxUploadError ?
                         (pdfUploadError?.message || docxUploadError?.message) : null
                 }
             });
@@ -400,8 +406,8 @@ exports.uploadJournal = async (req, res) => {
         } else if (error.message && error.message.includes('empty')) {
             errorMessage = "File upload failed: The uploaded file is empty";
             statusCode = 400;
-        } else if (error.message && error.message.includes('Google Drive')) {
-            errorMessage = "File upload failed: Could not upload to Google Drive";
+        } else if (error.message && error.message.includes('Cloudinary')) {
+            errorMessage = "File upload failed: Could not upload to Cloudinary";
         }
 
         return res.status(statusCode).json({

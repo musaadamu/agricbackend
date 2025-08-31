@@ -6,35 +6,7 @@ const multer = require('multer');
 const mammoth = require('mammoth');
 const PDFDocument = require('pdfkit');
 const Journal = require('../models/Journal');
-const { google } = require('googleapis');
-const { verifyDriveFolder, listFolderContents, uploadFile, makeFilePublic } = require('../utils/googleDrive');
 
-// Set up Google Drive API client
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  'https://developers.google.com/oauthplayground'
-);
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-  scope: [
-    'https://www.googleapis.com/auth/drive',
-    'https://www.googleapis.com/auth/drive.file'
-  ]
-});
-
-const drive = google.drive({
-  version: 'v3',
-  auth: oauth2Client,
-});
-
-// Log environment variables for debugging
-console.log('Diagnostic routes - Google Drive credentials:');
-console.log('Client ID:', process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 10) + '...' : 'Not set');
-console.log('Client Secret:', process.env.GOOGLE_CLIENT_SECRET ? process.env.GOOGLE_CLIENT_SECRET.substring(0, 10) + '...' : 'Not set');
-console.log('Refresh Token:', process.env.GOOGLE_REFRESH_TOKEN ? process.env.GOOGLE_REFRESH_TOKEN.substring(0, 10) + '...' : 'Not set');
-console.log('Folder ID:', process.env.GOOGLE_DRIVE_FOLDER_ID);
 
 // Configure multer for file uploads in diagnostic routes
 const storage = multer.diskStorage({
@@ -203,107 +175,9 @@ router.get('/fix-file-path/:journalId/:fileType', async (req, res) => {
     }
 });
 
-// Add a route to check Google Drive connectivity and folder
-router.get('/check-google-drive', async (req, res) => {
-    try {
-        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-        if (!folderId) {
-            return res.status(400).json({
-                success: false,
-                message: 'GOOGLE_DRIVE_FOLDER_ID not set in environment variables'
-            });
-        }
+// Google Drive functionality removed - using Cloudinary instead
 
-        // Verify the folder exists
-        const folder = await verifyDriveFolder(folderId);
-
-        // List files in the folder
-        const files = await listFolderContents(folderId);
-
-        res.json({
-            success: true,
-            folder: {
-                id: folder.id,
-                name: folder.name,
-                mimeType: folder.mimeType
-            },
-            files: files,
-            googleCredentials: {
-                clientId: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set',
-                clientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Not set',
-                refreshToken: process.env.GOOGLE_REFRESH_TOKEN ? 'Set' : 'Not set',
-                accessToken: process.env.GOOGLE_ACCESS_TOKEN ? 'Set' : 'Not set'
-            }
-        });
-    } catch (error) {
-        console.error('Error checking Google Drive:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error checking Google Drive',
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-});
-
-// Add a route to check a specific journal's Google Drive files
-router.get('/check-journal-drive-files/:journalId', async (req, res) => {
-    try {
-        const journalId = req.params.journalId;
-
-        // Find the journal
-        const journal = await Journal.findById(journalId);
-        if (!journal) {
-            return res.status(404).json({ message: 'Journal not found' });
-        }
-
-        const result = {
-            journalId,
-            title: journal.title,
-            docxFileId: journal.docxFileId || 'Not set',
-            pdfFileId: journal.pdfFileId || 'Not set',
-            docxFilePath: journal.docxFilePath || 'Not set',
-            pdfFilePath: journal.pdfFilePath || 'Not set',
-            docxFileDetails: null,
-            pdfFileDetails: null
-        };
-
-        // Check if docxFileId exists and get details
-        if (journal.docxFileId) {
-            try {
-                const response = await drive.files.get({
-                    fileId: journal.docxFileId,
-                    fields: 'id, name, mimeType, size, createdTime'
-                });
-                result.docxFileDetails = response.data;
-            } catch (error) {
-                result.docxFileError = error.message;
-            }
-        }
-
-        // Check if pdfFileId exists and get details
-        if (journal.pdfFileId) {
-            try {
-                const response = await drive.files.get({
-                    fileId: journal.pdfFileId,
-                    fields: 'id, name, mimeType, size, createdTime'
-                });
-                result.pdfFileDetails = response.data;
-            } catch (error) {
-                result.pdfFileError = error.message;
-            }
-        }
-
-        res.json(result);
-    } catch (error) {
-        console.error('Error checking journal drive files:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error checking journal drive files',
-            error: error.message
-        });
-    }
-});
+// Journal file checking now uses Cloudinary URLs instead of Google Drive
 
 // Add a route to test PDF conversion
 router.post('/test-pdf-conversion', upload.single('file'), async (req, res) => {
@@ -452,92 +326,7 @@ router.post('/test-puppeteer-pdf', upload.single('file'), async (req, res) => {
     }
 });
 
-// Add a route to test Google Drive upload
-router.post('/test-drive-upload', upload.single('file'), async (req, res) => {
-    console.log('\n\n🔴🔴🔴 TEST DRIVE UPLOAD ENDPOINT CALLED 🔴🔴🔴');
-    console.log('Request received at:', new Date().toISOString());
-    console.log('Environment variables:');
-    console.log('- NODE_ENV:', process.env.NODE_ENV);
-    console.log('- GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 10) + '...' : 'Not set');
-    console.log('- GOOGLE_DRIVE_FOLDER_ID:', process.env.GOOGLE_DRIVE_FOLDER_ID || 'Not set');
-    console.log('Current working directory:', process.cwd());
-    console.log('Request headers:', req.headers);
-    console.log('Request body:', req.body);
-    console.log('Request file:', req.file ? 'File received' : 'No file received');
-    if (req.file) {
-        console.log('File details:', {
-            filename: req.file.filename,
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size,
-            path: req.file.path
-        });
-    }
-    try {
-        if (!req.file) {
-            return res.status(400).json({ message: 'No file uploaded' });
-        }
-
-        console.log('=== GOOGLE DRIVE TEST UPLOAD ===');
-        console.log('File uploaded for Google Drive test:', req.file.path);
-        console.log('File details:', {
-            filename: req.file.filename,
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size
-        });
-
-        // Verify Google Drive credentials
-        console.log('Verifying Google Drive credentials...');
-        console.log('Client ID:', process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set');
-        console.log('Client Secret:', process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Not set');
-        console.log('Refresh Token:', process.env.GOOGLE_REFRESH_TOKEN ? 'Set' : 'Not set');
-        console.log('Folder ID:', process.env.GOOGLE_DRIVE_FOLDER_ID);
-
-        // Upload file to Google Drive
-        console.log('Uploading file to Google Drive...');
-        const uploadResult = await uploadFile(
-            req.file.path,
-            req.file.filename,
-            process.env.GOOGLE_DRIVE_FOLDER_ID
-        );
-
-        console.log('Google Drive upload result:', uploadResult);
-
-        // Make the file public
-        console.log('Making file public...');
-        const publicLink = await makeFilePublic(uploadResult.id);
-
-        // Clean up the local file
-        await fs.promises.unlink(req.file.path).catch(e => console.error('Error deleting file:', e));
-
-        // Return success with file details
-        res.json({
-            success: true,
-            fileId: uploadResult.id,
-            fileName: uploadResult.name,
-            webViewLink: publicLink,
-            message: 'Google Drive upload successful'
-        });
-    } catch (error) {
-        console.error('Error in Google Drive test upload:', error);
-        console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-
-        // Clean up the local file if it exists
-        if (req.file?.path) {
-            await fs.promises.unlink(req.file.path).catch(e => console.error('Error deleting file:', e));
-        }
-
-        // Always show detailed error information regardless of environment
-        res.status(500).json({
-            success: false,
-            message: 'Google Drive upload failed',
-            error: error.message,
-            stack: error.stack,
-            details: JSON.stringify(error, Object.getOwnPropertyNames(error))
-        });
-    }
-});
+// Google Drive upload test removed - using Cloudinary instead
 
 // Add a route to test direct file download
 router.get('/test-direct-download/:journalId/:fileType', async (req, res) => {
@@ -629,80 +418,7 @@ router.get('/test-direct-download/:journalId/:fileType', async (req, res) => {
     }
 });
 
-// Add a route to test downloading a file from Google Drive
-router.get('/test-drive-download/:fileId', async (req, res) => {
-  try {
-    const fileId = req.params.fileId;
-    console.log('Testing download from Google Drive for file ID:', fileId);
-
-    // Create temp directory if it doesn't exist
-    const tempDir = path.join(__dirname, '..', 'temp');
-    await fs.promises.mkdir(tempDir, { recursive: true });
-
-    // Download the file
-    const tempFilePath = path.join(tempDir, `${fileId}-test.tmp`);
-    console.log('Downloading to temp file:', tempFilePath);
-
-    try {
-      // Get file metadata first
-      const fileMetadata = await drive.files.get({ fileId });
-      console.log('File metadata:', fileMetadata.data);
-
-      // Download the file
-      const response = await drive.files.get(
-        { fileId, alt: 'media' },
-        { responseType: 'stream' }
-      );
-
-      const dest = fs.createWriteStream(tempFilePath);
-
-      await new Promise((resolve, reject) => {
-        response.data
-          .on('end', () => {
-            console.log('File downloaded successfully');
-            resolve();
-          })
-          .on('error', (err) => {
-            console.error('Error downloading file:', err);
-            reject(err);
-          })
-          .pipe(dest);
-      });
-
-      // Check if file was downloaded
-      const fileStats = await fs.promises.stat(tempFilePath);
-      console.log('Downloaded file size:', fileStats.size);
-
-      // Send the file
-      res.download(tempFilePath, fileMetadata.data.name, (err) => {
-        if (err) {
-          console.error('Error sending file:', err);
-        }
-
-        // Clean up temp file
-        fs.unlink(tempFilePath, (unlinkErr) => {
-          if (unlinkErr) {
-            console.error('Error deleting temp file:', unlinkErr);
-          }
-        });
-      });
-    } catch (error) {
-      console.error('Error downloading file from Google Drive:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to download file from Google Drive',
-        error: error.message
-      });
-    }
-  } catch (error) {
-    console.error('Error in test-drive-download:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to test Google Drive download',
-      error: error.message
-    });
-  }
-});
+// Google Drive download test removed - using Cloudinary instead
 
 // Add a direct file serving route for testing
 router.get('/direct-file/:filename', (req, res) => {
