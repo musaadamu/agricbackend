@@ -796,11 +796,6 @@ const connectDB = async () => {
 
         console.log('✅ MongoDB connected successfully');
         console.log(`MongoDB URI: ${process.env.MONGODB_URI.substring(0, 20)}...`);
-
-        app.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT}`);
-            console.log(`Backend URL: http://localhost:${PORT}`);
-        });
     } catch (err) {
         console.error('❌ MongoDB connection error:', err);
         setTimeout(() => connectDB(), 5000);
@@ -846,7 +841,6 @@ const startServer = async () => {
     }
 
     // Start the server regardless of MongoDB connection
-    const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
         console.log(`Backend URL: ${process.env.NODE_ENV === 'production' ? process.env.BACKEND_URL : `http://localhost:${PORT}`}`);
