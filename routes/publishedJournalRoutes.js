@@ -14,7 +14,9 @@ const {
     downloadPublishedJournalPdf,
     downloadPublishedJournalDocx,
     directDownloadPublishedJournalPdf,
-    directDownloadPublishedJournalDocx
+    directDownloadPublishedJournalDocx,
+    getPublishedJournalStats,
+    advancedSearchPublishedJournals
 } = require('../controllers/publishedJournalController');
 
 // Middleware for authentication (you can implement this based on your auth system)
@@ -47,6 +49,10 @@ router.get('/:id/download/pdf', downloadPublishedJournalPdf);
 router.get('/:id/download/docx', downloadPublishedJournalDocx);
 router.get('/:id/direct-download/pdf', directDownloadPublishedJournalPdf);
 router.get('/:id/direct-download/docx', directDownloadPublishedJournalDocx);
+
+// Statistics and search routes
+router.get('/stats/overview', getPublishedJournalStats);
+router.get('/search/advanced', advancedSearchPublishedJournals;
 
 // Protected routes - require authentication
 

@@ -887,6 +887,176 @@ const directDownloadPublishedJournalDocx = async (req, res) => {
     }
 };
 
+// Get published journal statistics
+const getPublishedJournalStats = async (req, res) => {
+    try {
+        const { year } = req.query;
+        const currentYear = year ? parseInt(year) : new Date().getFullYear();
+
+        // Overview stats
+        const totalJournals = await PublishedJournal.countDocuments({ status: 'published' });
+        const currentYearJournals = await PublishedJournal.countDocuments({
+            status: 'published',
+            volume_year: currentYear
+        });
+
+        // Quarterly stats for current year
+        const quarterlyStats = await PublishedJournal.aggregate([
+            {
+                $match: {
+                    status: 'published',
+                    volume_year: currentYear
+                }
+            },
+            {
+                $group: {
+                    _id: '$volume_quarter',
+                    count: { $sum: 1 },
+                    downloads: { $sum: { $ifNull: ['$downloadCount', 0] } }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Yearly trends
+        const yearlyStats = await PublishedJournal.aggregate([
+            { $match: { status: 'published' } },
+            {
+                $group: {
+                    _id: '$volume_year',
+                    count: { $sum: 1 },
+                    downloads: { $sum: { $ifNull: ['$downloadCount', 0] } }
+                }
+            },
+            { $sort: { _id: -1 } },
+            { $limit: 5 }
+        ]);
+
+        // Top performing journals
+        const topJournals = await PublishedJournal.find({ status: 'published' })
+            .sort({ downloadCount: -1 })
+            .limit(10)
+            .select('title authors volume_year volume_quarter downloadCount');
+
+        const totalDownloads = await PublishedJournal.aggregate([
+            { $match: { status: 'published' } },
+            { $group: { _id: null, total: { $sum: { $ifNull: ['$downloadCount', 0] } } } }
+        ]);
+
+        const totalAuthors = await PublishedJournal.aggregate([
+            { $match: { status: 'published' } },
+            { $unwind: '$authors' },
+            { $group: { _id: '$authors' } },
+            { $count: 'total' }
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                overview: {
+                    totalJournals,
+                    currentYearJournals,
+                    totalDownloads: totalDownloads[0]?.total || 0,
+                    totalAuthors: totalAuthors[0]?.total || 0
+                },
+                quarterlyStats: quarterlyStats.map(q => ({
+                    quarter: q._id,
+                    count: q.count,
+                    downloads: q.downloads
+                })),
+                yearlyStats: yearlyStats.map(y => ({
+                    year: y._id,
+                    count: y.count,
+                    downloads: y.downloads
+                })),
+                topJournals
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching published journal stats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching statistics',
+            error: error.message
+        });
+    }
+};
+
+// Advanced search for published journals
+const advancedSearchPublishedJournals = async (req, res) => {
+    try {
+        const {
+            search,
+            year,
+            quarter,
+            author,
+            keywords,
+            status = 'published',
+            page = 1,
+            limit = 10
+        } = req.query;
+
+        const query = { status };
+
+        // Text search
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { abstract: { $regex: search, $options: 'i' } },
+                { keywords: { $in: [new RegExp(search, 'i')] } }
+            ];
+        }
+
+        // Year filter
+        if (year) {
+            query.volume_year = parseInt(year);
+        }
+
+        // Quarter filter
+        if (quarter) {
+            query.volume_quarter = parseInt(quarter);
+        }
+
+        // Author filter
+        if (author) {
+            query.authors = { $regex: author, $options: 'i' };
+        }
+
+        // Keywords filter
+        if (keywords) {
+            const keywordArray = keywords.split(',').map(k => k.trim());
+            query.keywords = { $in: keywordArray.map(k => new RegExp(k, 'i')) };
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        const journals = await PublishedJournal.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .populate('submitted_by', 'name email');
+
+        const total = await PublishedJournal.countDocuments(query);
+
+        res.json({
+            success: true,
+            data: {
+                journals,
+                total,
+                page: parseInt(page),
+                totalPages: Math.ceil(total / parseInt(limit))
+            }
+        });
+    } catch (error) {
+        console.error('Error in advanced search:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error performing search',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getAllPublishedJournals,
     getArchivedJournals,
@@ -902,5 +1072,7 @@ module.exports = {
     downloadPublishedJournalPdf,
     downloadPublishedJournalDocx,
     directDownloadPublishedJournalPdf,
-    directDownloadPublishedJournalDocx
+    directDownloadPublishedJournalDocx,
+    getPublishedJournalStats,
+    advancedSearchPublishedJournals
 };
