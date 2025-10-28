@@ -81,8 +81,8 @@ app.use(morgan('combined')); // Use 'combined' for production logging
 const allowedOrigins = [
     'http://localhost:3000',           // Local frontend development
     'http://localhost:5000',           // Vite default port
-    'https://schoolofagricbackend.vercel.app', // Frontend deployment URL (Vercel)
-    'https://schoolofagricfrontend.onrender.com', // This backend deployment URL (Render)
+    'https://agricfrontend.vercel.app', // Frontend deployment URL (Vercel)
+    'https://agricbackend.onrender.com', // Backend deployment URL (Render)
 ].filter(Boolean);
 
 console.log('🚀 DELETE FIX v1.2 - Allowed CORS origins:', allowedOrigins);
@@ -90,8 +90,8 @@ console.log('🔧 Global CORS middleware active with DELETE support');
 
 // Log the current environment
 console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('Backend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofagricfrontend.onrender.com' : `http://localhost:${PORT}`);
-console.log('Frontend URL:', process.env.NODE_ENV === 'production' ? 'https://schoolofagricbackend.vercel.app' : 'http://localhost:3000');
+console.log('Backend URL:', process.env.NODE_ENV === 'production' ? 'https://agricbackend.onrender.com' : `http://localhost:${PORT}`);
+console.log('Frontend URL:', process.env.NODE_ENV === 'production' ? 'https://agricfrontend.vercel.app' : 'http://localhost:3000');
 
 // Enhanced global CORS middleware
 app.use((req, res, next) => {
