@@ -159,7 +159,9 @@ exports.updateUser = async (req, res) => {
         const email = req.body.email ? req.body.email.trim() : null;
         const password = req.body.password || null; // Password will be hashed by pre-save hook
         const { role } = req.body;
-        const userId = req.params.id;
+
+        // Get userId from authenticated user (req.user is set by protect middleware)
+        const userId = req.user.id || req.user._id;
 
         let user = await User.findById(userId);
         if (!user) {
