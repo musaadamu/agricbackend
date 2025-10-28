@@ -40,9 +40,21 @@ exports.directDownloadPdf = async (req, res) => {
 
         // Use the fl_attachment URL format for better download experience
         let downloadUrl = cloudinaryUrl;
-        if (cloudinaryUrl.includes('/schoolofbusiness/') && !cloudinaryUrl.includes('fl_attachment')) {
-            downloadUrl = cloudinaryUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
-            console.log('Using Cloudinary URL with fl_attachment:', downloadUrl);
+        if (!downloadUrl.includes('fl_attachment')) {
+            if (downloadUrl.includes('/schoolofbusiness/')) {
+                downloadUrl = downloadUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
+                console.log('Using Cloudinary URL with fl_attachment (schoolofbusiness):', downloadUrl);
+            } else if (downloadUrl.includes('/agricjournal/')) {
+                downloadUrl = downloadUrl.replace('/agricjournal/', '/agricjournal/fl_attachment/');
+                console.log('Using Cloudinary URL with fl_attachment (agricjournal):', downloadUrl);
+            } else {
+                // Generic approach for any Cloudinary URL
+                const urlParts = downloadUrl.split('/upload/');
+                if (urlParts.length === 2) {
+                    downloadUrl = `${urlParts[0]}/upload/fl_attachment/${urlParts[1]}`;
+                    console.log('Using Cloudinary URL with fl_attachment (generic):', downloadUrl);
+                }
+            }
         }
 
         try {
@@ -121,9 +133,21 @@ exports.directDownloadDocx = async (req, res) => {
 
         // Use the fl_attachment URL format for better download experience
         let downloadUrl = cloudinaryUrl;
-        if (cloudinaryUrl.includes('/schoolofbusiness/') && !cloudinaryUrl.includes('fl_attachment')) {
-            downloadUrl = cloudinaryUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
-            console.log('Using Cloudinary URL with fl_attachment:', downloadUrl);
+        if (!downloadUrl.includes('fl_attachment')) {
+            if (downloadUrl.includes('/schoolofbusiness/')) {
+                downloadUrl = downloadUrl.replace('/schoolofbusiness/', '/schoolofbusiness/fl_attachment/');
+                console.log('Using Cloudinary URL with fl_attachment (schoolofbusiness):', downloadUrl);
+            } else if (downloadUrl.includes('/agricjournal/')) {
+                downloadUrl = downloadUrl.replace('/agricjournal/', '/agricjournal/fl_attachment/');
+                console.log('Using Cloudinary URL with fl_attachment (agricjournal):', downloadUrl);
+            } else {
+                // Generic approach for any Cloudinary URL
+                const urlParts = downloadUrl.split('/upload/');
+                if (urlParts.length === 2) {
+                    downloadUrl = `${urlParts[0]}/upload/fl_attachment/${urlParts[1]}`;
+                    console.log('Using Cloudinary URL with fl_attachment (generic):', downloadUrl);
+                }
+            }
         }
 
         try {

@@ -311,10 +311,16 @@ exports.uploadSubmission = async (req, res) => {
             const docxStats = await fsPromises.stat(docxFilePath);
             console.log('DOCX file exists and is ready for upload, size:', docxStats.size, 'bytes');
 
+            // Create a clean public_id without special characters
+            const cleanDocxFilename = file.filename
+                .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+                .replace(/\s+/g, '_')               // Replace spaces with underscore
+                .toLowerCase();
+
             docxUploadResult = await cloudinary.uploader.upload(docxFilePath, {
                 resource_type: 'raw',
                 folder: process.env.CLOUDINARY_FOLDER || 'agricjournal',
-                public_id: `${Date.now()}-${file.filename}`,
+                public_id: `${Date.now()}-${cleanDocxFilename}`,
                 use_filename: true,
                 unique_filename: false,
                 overwrite: true,
@@ -340,10 +346,17 @@ exports.uploadSubmission = async (req, res) => {
             const pdfStats = await fsPromises.stat(pdfFilePath);
             console.log('PDF file exists and is ready for upload, size:', pdfStats.size, 'bytes');
 
+            // Create a clean public_id without special characters
+            const pdfBasename = path.basename(pdfFilePath);
+            const cleanPdfFilename = pdfBasename
+                .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+                .replace(/\s+/g, '_')               // Replace spaces with underscore
+                .toLowerCase();
+
             pdfUploadResult = await cloudinary.uploader.upload(pdfFilePath, {
                 resource_type: 'raw',
                 folder: process.env.CLOUDINARY_FOLDER || 'agricjournal',
-                public_id: `${Date.now()}-${path.basename(pdfFilePath)}`,
+                public_id: `${Date.now()}-${cleanPdfFilename}`,
                 use_filename: true,
                 unique_filename: false,
                 overwrite: true,

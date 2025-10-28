@@ -226,12 +226,19 @@ exports.uploadJournal = async (req, res) => {
         try {
             const pdfStats = await fsPromises.stat(pdfFile.path);
             console.log('PDF file exists and is ready for upload, size:', pdfStats.size, 'bytes');
+
+            // Create a clean public_id without special characters
+            const cleanPdfFilename = pdfFile.filename
+                .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+                .replace(/\s+/g, '_')               // Replace spaces with underscore
+                .toLowerCase();
+
             pdfUploadResult = await cloudinary.uploader.upload(pdfFile.path, {
                 folder: process.env.CLOUDINARY_FOLDER || 'agricjournal',
                 resource_type: 'raw',
-                public_id: `${Date.now()}-${pdfFile.filename}`,
+                public_id: `${Date.now()}-${cleanPdfFilename}`,
                 use_filename: true,
-                unique_filename: true,
+                unique_filename: false,
                 overwrite: true,
                 access_mode: 'public',
                 type: 'upload',
@@ -253,12 +260,19 @@ exports.uploadJournal = async (req, res) => {
         try {
             const docxStats = await fsPromises.stat(docxFile.path);
             console.log('DOCX file exists and is ready for upload, size:', docxStats.size, 'bytes');
+
+            // Create a clean public_id without special characters
+            const cleanDocxFilename = docxFile.filename
+                .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+                .replace(/\s+/g, '_')               // Replace spaces with underscore
+                .toLowerCase();
+
             docxUploadResult = await cloudinary.uploader.upload(docxFile.path, {
                 folder: process.env.CLOUDINARY_FOLDER || 'agricjournal',
                 resource_type: 'raw',
-                public_id: `${Date.now()}-${docxFile.filename}`,
+                public_id: `${Date.now()}-${cleanDocxFilename}`,
                 use_filename: true,
-                unique_filename: true,
+                unique_filename: false,
                 overwrite: true,
                 access_mode: 'public',
                 type: 'upload',

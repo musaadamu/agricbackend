@@ -274,10 +274,16 @@ const submitJournalForPublication = async (req, res) => {
         console.log('Uploading file to Cloudinary...');
         let cloudinaryUrl = null;
         try {
+            // Create a clean public_id without special characters
+            const cleanFilename = req.file.filename
+                .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+                .replace(/\s+/g, '_')               // Replace spaces with underscore
+                .toLowerCase();
+
             const uploadResult = await cloudinary.uploader.upload(req.file.path, {
                 resource_type: 'raw',
                 folder: `${process.env.CLOUDINARY_FOLDER || 'agricjournal'}/published-journals`,
-                public_id: `${Date.now()}-${req.file.filename}`,
+                public_id: `${Date.now()}-${cleanFilename}`,
                 use_filename: true,
                 unique_filename: false,
                 overwrite: true,
