@@ -887,20 +887,51 @@ const directDownloadPublishedJournalDocx = async (req, res) => {
     }
 };
 
-// Get published journal statistics
+// Get comprehensive published journal statistics
 const getPublishedJournalStats = async (req, res) => {
     try {
         const { year } = req.query;
         const currentYear = year ? parseInt(year) : new Date().getFullYear();
 
-        // Overview stats
-        const totalJournals = await PublishedJournal.countDocuments({ status: 'published' });
-        const currentYearJournals = await PublishedJournal.countDocuments({
-            status: 'published',
-            volume_year: currentYear
-        });
+        console.log(`📊 Fetching statistics for year: ${currentYear}`);
 
-        // Quarterly stats for current year
+        // 1. Overview Statistics
+        const [
+            totalJournals,
+            currentYearJournals,
+            totalSubmissions,
+            pendingReviews
+        ] = await Promise.all([
+            PublishedJournal.countDocuments({ status: 'published' }),
+            PublishedJournal.countDocuments({
+                status: 'published',
+                volume_year: currentYear
+            }),
+            PublishedJournal.countDocuments({}), // All submissions regardless of status
+            PublishedJournal.countDocuments({ status: { $in: ['submitted', 'under_review'] } })
+        ]);
+
+        // 2. Total Downloads Calculation
+        const downloadStats = await PublishedJournal.aggregate([
+            { $match: { status: 'published' } },
+            {
+                $group: {
+                    _id: null,
+                    totalDownloads: { $sum: { $ifNull: ['$downloadCount', 0] } },
+                    avgDownloads: { $avg: { $ifNull: ['$downloadCount', 0] } }
+                }
+            }
+        ]);
+
+        // 3. Unique Authors Count
+        const authorStats = await PublishedJournal.aggregate([
+            { $match: { status: 'published' } },
+            { $unwind: '$authors' },
+            { $group: { _id: { $toLower: { $trim: { input: '$authors' } } } } },
+            { $count: 'uniqueAuthors' }
+        ]);
+
+        // 4. Quarterly Statistics for Selected Year
         const quarterlyStats = await PublishedJournal.aggregate([
             {
                 $match: {
@@ -912,43 +943,114 @@ const getPublishedJournalStats = async (req, res) => {
                 $group: {
                     _id: '$volume_quarter',
                     count: { $sum: 1 },
-                    downloads: { $sum: { $ifNull: ['$downloadCount', 0] } }
+                    downloads: { $sum: { $ifNull: ['$downloadCount', 0] } },
+                    avgDownloads: { $avg: { $ifNull: ['$downloadCount', 0] } }
                 }
             },
             { $sort: { _id: 1 } }
         ]);
 
-        // Yearly trends
+        // Ensure all quarters are represented (1-4)
+        const completeQuarterlyStats = [1, 2, 3, 4].map(quarter => {
+            const existing = quarterlyStats.find(q => q._id === quarter);
+            return existing || {
+                _id: quarter,
+                count: 0,
+                downloads: 0,
+                avgDownloads: 0
+            };
+        });
+
+        // 5. Yearly Trends (Last 5 years)
         const yearlyStats = await PublishedJournal.aggregate([
             { $match: { status: 'published' } },
             {
                 $group: {
                     _id: '$volume_year',
                     count: { $sum: 1 },
-                    downloads: { $sum: { $ifNull: ['$downloadCount', 0] } }
+                    downloads: { $sum: { $ifNull: ['$downloadCount', 0] } },
+                    avgDownloads: { $avg: { $ifNull: ['$downloadCount', 0] } },
+                    uniqueAuthors: { $addToSet: '$authors' }
                 }
             },
             { $sort: { _id: -1 } },
             { $limit: 5 }
         ]);
 
-        // Top performing journals
-        const topJournals = await PublishedJournal.find({ status: 'published' })
+        // 6. Top Performing Journals
+        const topJournals = await PublishedJournal.find({
+            status: 'published',
+            downloadCount: { $gt: 0 }
+        })
             .sort({ downloadCount: -1 })
             .limit(10)
-            .select('title authors volume_year volume_quarter downloadCount');
+            .select('title authors volume_year volume_quarter downloadCount createdAt')
+            .lean();
 
-        const totalDownloads = await PublishedJournal.aggregate([
-            { $match: { status: 'published' } },
-            { $group: { _id: null, total: { $sum: { $ifNull: ['$downloadCount', 0] } } } }
+        // 7. Recent Activity (Last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const recentActivity = await PublishedJournal.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: thirtyDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
         ]);
 
-        const totalAuthors = await PublishedJournal.aggregate([
-            { $match: { status: 'published' } },
-            { $unwind: '$authors' },
-            { $group: { _id: '$authors' } },
-            { $count: 'total' }
+        // 8. Status Distribution
+        const statusDistribution = await PublishedJournal.aggregate([
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { count: -1 } }
         ]);
+
+        // 9. Available Years for Archive
+        const availableYears = await PublishedJournal.aggregate([
+            { $match: { status: 'published' } },
+            {
+                $group: {
+                    _id: '$volume_year',
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: -1 } }
+        ]);
+
+        // 10. Monthly Trends for Current Year
+        const monthlyTrends = await PublishedJournal.aggregate([
+            {
+                $match: {
+                    status: 'published',
+                    volume_year: currentYear
+                }
+            },
+            {
+                $group: {
+                    _id: { $month: '$createdAt' },
+                    count: { $sum: 1 },
+                    downloads: { $sum: { $ifNull: ['$downloadCount', 0] } }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        console.log(`📈 Statistics Summary:
+        - Total Journals: ${totalJournals}
+        - Current Year (${currentYear}): ${currentYearJournals}
+        - Total Downloads: ${downloadStats[0]?.totalDownloads || 0}
+        - Unique Authors: ${authorStats[0]?.uniqueAuthors || 0}`);
 
         res.json({
             success: true,
@@ -956,24 +1058,50 @@ const getPublishedJournalStats = async (req, res) => {
                 overview: {
                     totalJournals,
                     currentYearJournals,
-                    totalDownloads: totalDownloads[0]?.total || 0,
-                    totalAuthors: totalAuthors[0]?.total || 0
+                    totalSubmissions,
+                    pendingReviews,
+                    totalDownloads: downloadStats[0]?.totalDownloads || 0,
+                    avgDownloads: Math.round(downloadStats[0]?.avgDownloads || 0),
+                    totalAuthors: authorStats[0]?.uniqueAuthors || 0,
+                    currentYear
                 },
-                quarterlyStats: quarterlyStats.map(q => ({
+                quarterlyStats: completeQuarterlyStats.map(q => ({
                     quarter: q._id,
                     count: q.count,
-                    downloads: q.downloads
+                    downloads: q.downloads,
+                    avgDownloads: Math.round(q.avgDownloads || 0)
                 })),
                 yearlyStats: yearlyStats.map(y => ({
                     year: y._id,
                     count: y.count,
-                    downloads: y.downloads
+                    downloads: y.downloads,
+                    avgDownloads: Math.round(y.avgDownloads || 0),
+                    uniqueAuthors: y.uniqueAuthors ? y.uniqueAuthors.flat().length : 0
                 })),
-                topJournals
+                topJournals: topJournals.map(journal => ({
+                    ...journal,
+                    downloadCount: journal.downloadCount || 0
+                })),
+                recentActivity: recentActivity.reduce((acc, item) => {
+                    acc[item._id] = item.count;
+                    return acc;
+                }, {}),
+                statusDistribution: statusDistribution.reduce((acc, item) => {
+                    acc[item._id] = item.count;
+                    return acc;
+                }, {}),
+                availableYears: availableYears.map(y => y._id),
+                monthlyTrends: monthlyTrends.map(m => ({
+                    month: m._id,
+                    count: m.count,
+                    downloads: m.downloads
+                })),
+                generatedAt: new Date().toISOString(),
+                requestedYear: currentYear
             }
         });
     } catch (error) {
-        console.error('Error fetching published journal stats:', error);
+        console.error('❌ Error fetching published journal stats:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching statistics',
