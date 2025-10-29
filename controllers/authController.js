@@ -294,22 +294,28 @@ exports.forgotPassword = async (req, res) => {
         const mailOptions = {
             to: user.email,
             from: process.env.EMAIL_USER,
-            subject: "Sahara Journal - Password Reset Request",
-            text: `Hello ${user.name},\n\nYou requested a password reset for your Sahara Journal account.\n\nClick the following link to reset your password: ${resetLink}\n\nThis link will expire in 1 hour.\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n\nRegards,\nThe Sahara Journal Team`,
+            subject: "JOVOTE - Password Reset Request",
+            text: `Hello ${user.name},\n\nYou requested a password reset for your JOVOTE (Journal of Vocational Teacher Education) account.\n\nClick the following link to reset your password: ${resetLink}\n\nThis link will expire in 1 hour.\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n\nRegards,\nThe JOVOTE Team`,
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-                    <h2 style="color: #2563eb;">Sahara Journal Password Reset</h2>
-                    <p>Hello ${user.name},</p>
-                    <p>You requested a password reset for your Sahara Journal account.</p>
-                    <p>Click the button below to reset your password:</p>
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="${resetLink}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Reset Password</a>
+                    <div style="background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%); color: white; padding: 20px; border-radius: 5px 5px 0 0; text-align: center;">
+                        <h2 style="margin: 0; font-size: 24px;">JOVOTE Password Reset</h2>
+                        <p style="margin: 5px 0 0 0; font-size: 14px;">Journal of Vocational Teacher Education</p>
                     </div>
-                    <p>Or copy and paste this link in your browser:</p>
-                    <p style="word-break: break-all; color: #4b5563;"><a href="${resetLink}">${resetLink}</a></p>
-                    <p>This link will expire in 1 hour.</p>
-                    <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
-                    <p>Regards,<br>The Sahara Journal Team</p>
+                    <div style="padding: 20px; background-color: #fef2f2; border: 1px solid #fed7aa; border-top: none; border-radius: 0 0 5px 5px;">
+                        <p>Hello ${user.name},</p>
+                        <p>You requested a password reset for your JOVOTE account.</p>
+                        <p>Click the button below to reset your password:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${resetLink}" style="background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Reset Password</a>
+                        </div>
+                        <p>Or copy and paste this link in your browser:</p>
+                        <p style="word-break: break-all; color: #7c2d12; background-color: #fff7ed; padding: 10px; border-radius: 4px; border-left: 4px solid #dc2626;"><a href="${resetLink}" style="color: #dc2626; text-decoration: none;">${resetLink}</a></p>
+                        <p style="color: #7c2d12; font-size: 14px;"><strong>⏱️ This link will expire in 1 hour.</strong></p>
+                        <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
+                        <hr style="border: none; border-top: 1px solid #fed7aa; margin: 20px 0;">
+                        <p style="color: #7c2d12; font-size: 12px; margin: 0;">Regards,<br><strong>The JOVOTE Team</strong><br>Journal of Vocational Teacher Education<br>Federal College of Education (Technical), Potiskum, Yobe State, Nigeria</p>
+                    </div>
                 </div>
             `
         };
