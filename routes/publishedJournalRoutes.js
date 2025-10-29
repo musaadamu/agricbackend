@@ -73,8 +73,11 @@ router.get('/admin/pending', authenticateAdmin, getPendingReview);
 // GET /api/published-journals/admin/all - Get all journals for admin management
 router.get('/admin/all', authenticateAdmin, getAllJournalsForAdmin);
 
-// POST /api/published-journals/admin/upload - Admin direct upload
-router.post('/admin/upload', authenticateAdmin, upload.single('manuscript'), adminUploadJournal);
+// POST /api/published-journals/admin/upload - Admin direct upload (supports PDF and DOCX)
+router.post('/admin/upload', authenticateAdmin, upload.fields([
+    { name: 'pdfFile', maxCount: 1 },
+    { name: 'docxFile', maxCount: 1 }
+]), adminUploadJournal);
 
 // Bulk operations
 router.post('/admin/bulk-delete', authenticateAdmin, bulkDeleteJournals);
