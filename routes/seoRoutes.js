@@ -5,7 +5,7 @@ const Journal = require('../models/Journal');
 // Generate sitemap.xml
 router.get('/sitemap.xml', async (req, res) => {
     try {
-        const baseUrl = process.env.FRONTEND_URL || 'https://www.nijobed.com.ng';
+        const baseUrl = process.env.FRONTEND_URL || 'https://agricfrontend.vercel.app';
         
         // Get all published journals
         const journals = await Journal.find({ status: 'published' })
@@ -66,7 +66,7 @@ router.get('/sitemap.xml', async (req, res) => {
 
 // Generate robots.txt
 router.get('/robots.txt', (req, res) => {
-    const baseUrl = process.env.FRONTEND_URL || 'https://www.nijobed.com.ng';
+    const baseUrl = process.env.FRONTEND_URL || 'https://agricfrontend.vercel.app';
     
     const robots = `User-agent: *
 Allow: /
@@ -100,13 +100,13 @@ router.get('/journal-meta/:id', async (req, res) => {
             return res.status(404).json({ message: 'Journal not found' });
         }
 
-        const baseUrl = process.env.FRONTEND_URL || 'https://www.nijobed.com.ng';
-        
+        const baseUrl = process.env.FRONTEND_URL || 'https://agricfrontend.vercel.app';
+
         const metaData = {
-            title: `${journal.title} - NIJOBED`,
-            description: journal.abstract ? 
-                journal.abstract.substring(0, 155) + '...' : 
-                `Read "${journal.title}" published in the Nigerian Journal of Business and Entrepreneurship Education.`,
+            title: `${journal.title} - JOVOTE`,
+            description: journal.abstract ?
+                journal.abstract.substring(0, 155) + '...' :
+                `Read "${journal.title}" published in the Journal of Vocational Teacher Education.`,
             keywords: journal.keywords ? 
                 [...journal.keywords, 'NIJOBED', 'business education', 'entrepreneurship'].join(', ') :
                 'business education, entrepreneurship, academic journal, research',
@@ -156,12 +156,12 @@ router.get('/journals-sitemap', async (req, res) => {
             .select('_id publishedDate')
             .sort({ publishedDate: -1 });
 
-        const baseUrl = process.env.FRONTEND_URL || 'https://www.nijobed.com.ng';
-        
+        const baseUrl = process.env.FRONTEND_URL || 'https://agricfrontend.vercel.app';
+
         const journalUrls = journals.map(journal => ({
             url: `${baseUrl}/journals/${journal._id}`,
-            lastmod: journal.publishedDate ? 
-                new Date(journal.publishedDate).toISOString().split('T')[0] : 
+            lastmod: journal.publishedDate ?
+                new Date(journal.publishedDate).toISOString().split('T')[0] :
                 new Date().toISOString().split('T')[0]
         }));
 

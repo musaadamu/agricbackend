@@ -37,6 +37,7 @@ const authRoutes = require('./routes/authRoutes');
 const diagnosticRoutes = require('./routes/diagnosticRoutes');
 const seoRoutes = require('./routes/seoRoutes');
 const publishedJournalRoutes = require('./routes/publishedJournalRoutes');
+const contactRoutes = require('./routes/contactRoutes');
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -183,6 +184,12 @@ app.use('/api/published-journals', (req, res, next) => {
     console.log(`🔧 PUBLISHED JOURNAL REQUEST: ${req.method} ${req.path}`);
     next();
 }, fileUploadSecurity, publishedJournalRoutes);
+
+// Contact routes - for contact form submissions
+app.use('/api/contact', (req, res, next) => {
+    console.log(`🔧 CONTACT REQUEST: ${req.method} ${req.path}`);
+    next();
+}, contactRoutes);
 
 // Mount diagnostic routes
 app.use('/api/diagnostic', diagnosticRoutes);
