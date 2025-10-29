@@ -175,7 +175,7 @@ router.get('/journals-sitemap', async (req, res) => {
 // Get RSS feed
 router.get('/rss.xml', async (req, res) => {
     try {
-        const baseUrl = process.env.FRONTEND_URL || 'https://www.nijobed.com.ng';
+        const baseUrl = process.env.FRONTEND_URL || 'https://agricfrontend.vercel.app';
         
         // Get latest 20 published journals
         const journals = await Journal.find({ status: 'published' })
@@ -201,10 +201,10 @@ router.get('/rss.xml', async (req, res) => {
         <item>
             <title><![CDATA[${journal.title}]]></title>
             <link>${baseUrl}/journals/${journal._id}</link>
-            <description><![CDATA[${journal.abstract || 'Read this article from NIJOBED'}]]></description>
+            <description><![CDATA[${journal.abstract || 'Read this article from JOVOTE'}]]></description>
             <pubDate>${pubDate}</pubDate>
             <guid>${baseUrl}/journals/${journal._id}</guid>
-            <author><![CDATA[${journal.authors ? journal.authors.join(', ') : 'NIJOBED'}]]></author>
+            <author><![CDATA[${journal.authors ? journal.authors.join(', ') : 'JOVOTE'}]]></author>
         </item>`;
         });
 
