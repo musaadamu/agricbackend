@@ -62,8 +62,11 @@ router.get('/search/advanced', advancedSearchPublishedJournals);
 
 // Protected routes - require authentication
 
-// POST /api/published-journals/submit - Submit journal for publication
-router.post('/submit', authenticateUser, upload.single('manuscript'), submitJournalForPublication);
+// POST /api/published-journals/submit - Submit journal for publication (supports PDF and DOCX)
+router.post('/submit', authenticateUser, upload.fields([
+    { name: 'pdfFile', maxCount: 1 },
+    { name: 'docxFile', maxCount: 1 }
+]), submitJournalForPublication);
 
 // Admin routes - require admin authentication
 

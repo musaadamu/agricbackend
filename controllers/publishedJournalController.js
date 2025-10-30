@@ -242,12 +242,16 @@ const submitJournalForPublication = async (req, res) => {
     try {
         console.log('=== PUBLISHED JOURNAL SUBMISSION STARTED ===');
         console.log('Request body:', req.body);
-        console.log('Uploaded file:', req.file);
+        console.log('Uploaded files:', req.files);
 
-        if (!req.file) {
+        // Check for files - support both single file (req.file) and multiple files (req.files)
+        const pdfFile = req.files?.pdfFile?.[0] || req.file;
+        const docxFile = req.files?.docxFile?.[0];
+
+        if (!pdfFile && !docxFile) {
             return res.status(400).json({
                 success: false,
-                message: 'No file uploaded'
+                message: 'Please upload at least one file (PDF or DOCX)'
             });
         }
 
@@ -270,61 +274,110 @@ const submitJournalForPublication = async (req, res) => {
         // Calculate volume from current date
         const volume = calculateVolume(new Date());
 
-        // Upload file to Cloudinary
-        console.log('Uploading file to Cloudinary...');
-        let cloudinaryUrl = null;
-        try {
-            // Create a clean public_id without special characters
-            const cleanFilename = req.file.filename
-                .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
-                .replace(/\s+/g, '_')               // Replace spaces with underscore
-                .toLowerCase();
-
-            const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-                resource_type: 'raw',
-                folder: `${process.env.CLOUDINARY_FOLDER || 'agricjournal'}/published-journals`,
-                public_id: `${Date.now()}-${cleanFilename}`,
-                use_filename: true,
-                unique_filename: false,
-                overwrite: true,
-                access_mode: 'public',
-                type: 'upload'
-            });
-
-            cloudinaryUrl = uploadResult.secure_url;
-            console.log('File uploaded to Cloudinary:', cloudinaryUrl);
-        } catch (cloudinaryError) {
-            console.error('Cloudinary upload failed:', cloudinaryError);
-            // Continue with local file path if Cloudinary fails
-        }
-
-        // Create new published journal entry
-        const publishedJournal = new PublishedJournal({
+        const journalData = {
             title,
             abstract,
             authors: authorsArray,
             keywords: keywordsArray,
-            content_file_path: req.file.path,
-            pdfCloudinaryUrl: cloudinaryUrl,
             volume_year: volume.year,
             volume_quarter: volume.quarter,
             status: 'submitted',
-            file_size: req.file.size,
-            file_type: req.file.mimetype,
             submitted_by: submitted_by || 'Anonymous'
-        });
+        };
 
-        const savedJournal = await publishedJournal.save();
-
-        // Clean up local file after successful Cloudinary upload
-        if (cloudinaryUrl) {
+        // Upload PDF file to Cloudinary
+        if (pdfFile) {
+            console.log('Uploading PDF to Cloudinary...');
             try {
-                await fsPromises.unlink(req.file.path);
-                console.log('Local file cleaned up after Cloudinary upload');
-            } catch (unlinkError) {
-                console.error('Error cleaning up local file:', unlinkError);
+                const cleanPdfFilename = (pdfFile.originalname || pdfFile.filename)
+                    .replace(/[^a-zA-Z0-9._-]/g, '_')
+                    .replace(/\s+/g, '_')
+                    .toLowerCase();
+
+                const pdfUploadResult = await cloudinary.uploader.upload(pdfFile.path, {
+                    resource_type: 'raw',
+                    folder: `${process.env.CLOUDINARY_FOLDER || 'agricjournal'}/published-journals`,
+                    public_id: `${Date.now()}-${cleanPdfFilename}`,
+                    use_filename: true,
+                    unique_filename: false,
+                    overwrite: true,
+                    access_mode: 'public',
+                    type: 'upload',
+                    tags: ['published_journal_pdf']
+                });
+
+                journalData.pdfCloudinaryUrl = pdfUploadResult.secure_url;
+                journalData.pdfFileId = pdfUploadResult.public_id;
+                journalData.content_file_path = pdfFile.path;
+                journalData.file_size = pdfFile.size;
+                journalData.file_type = pdfFile.mimetype;
+                console.log('PDF uploaded to Cloudinary:', pdfUploadResult.secure_url);
+
+                // Clean up local file
+                try {
+                    await fsPromises.unlink(pdfFile.path);
+                    console.log('Local PDF file cleaned up');
+                } catch (unlinkError) {
+                    console.error('Error cleaning up PDF file:', unlinkError);
+                }
+            } catch (pdfError) {
+                console.error('Failed to upload PDF to Cloudinary:', pdfError);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to upload PDF file to Cloudinary',
+                    error: pdfError.message
+                });
             }
         }
+
+        // Upload DOCX file to Cloudinary
+        if (docxFile) {
+            console.log('Uploading DOCX to Cloudinary...');
+            try {
+                const cleanDocxFilename = (docxFile.originalname || docxFile.filename)
+                    .replace(/[^a-zA-Z0-9._-]/g, '_')
+                    .replace(/\s+/g, '_')
+                    .toLowerCase();
+
+                const docxUploadResult = await cloudinary.uploader.upload(docxFile.path, {
+                    resource_type: 'raw',
+                    folder: `${process.env.CLOUDINARY_FOLDER || 'agricjournal'}/published-journals`,
+                    public_id: `${Date.now()}-${cleanDocxFilename}`,
+                    use_filename: true,
+                    unique_filename: false,
+                    overwrite: true,
+                    access_mode: 'public',
+                    type: 'upload',
+                    tags: ['published_journal_docx']
+                });
+
+                journalData.docxCloudinaryUrl = docxUploadResult.secure_url;
+                journalData.docxFileId = docxUploadResult.public_id;
+                if (!journalData.content_file_path) {
+                    journalData.content_file_path = docxFile.path;
+                }
+                console.log('DOCX uploaded to Cloudinary:', docxUploadResult.secure_url);
+
+                // Clean up local file
+                try {
+                    await fsPromises.unlink(docxFile.path);
+                    console.log('Local DOCX file cleaned up');
+                } catch (unlinkError) {
+                    console.error('Error cleaning up DOCX file:', unlinkError);
+                }
+            } catch (docxError) {
+                console.error('Failed to upload DOCX to Cloudinary:', docxError);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to upload DOCX file to Cloudinary',
+                    error: docxError.message
+                });
+            }
+        }
+
+        // Create new published journal entry
+        const publishedJournal = new PublishedJournal(journalData);
+        const savedJournal = await publishedJournal.save();
 
         console.log('=== PUBLISHED JOURNAL SUBMISSION COMPLETED ===');
 
@@ -337,12 +390,19 @@ const submitJournalForPublication = async (req, res) => {
     } catch (error) {
         console.error('Error submitting journal for publication:', error);
 
-        // Clean up uploaded file on error
-        if (req.file?.path) {
+        // Clean up uploaded files on error
+        if (req.files?.pdfFile?.[0]?.path) {
             try {
-                await fsPromises.unlink(req.file.path);
+                await fsPromises.unlink(req.files.pdfFile[0].path);
             } catch (unlinkError) {
-                console.error('Error cleaning up file on error:', unlinkError);
+                console.error('Error cleaning up PDF file on error:', unlinkError);
+            }
+        }
+        if (req.files?.docxFile?.[0]?.path) {
+            try {
+                await fsPromises.unlink(req.files.docxFile[0].path);
+            } catch (unlinkError) {
+                console.error('Error cleaning up DOCX file on error:', unlinkError);
             }
         }
 
@@ -1285,7 +1345,7 @@ const adminUploadJournal = async (req, res) => {
         const parsedAuthors = typeof authors === 'string' ? JSON.parse(authors) : authors;
         const parsedKeywords = typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
 
-        // Check if at least one file is uploaded
+        // Check if at least one file is uploaded (multer provides files as arrays)
         if (!req.files || (!req.files.pdfFile && !req.files.docxFile)) {
             return res.status(400).json({
                 success: false,
@@ -1306,18 +1366,18 @@ const adminUploadJournal = async (req, res) => {
         };
 
         // Handle PDF file upload to Cloudinary
-        if (req.files.pdfFile) {
-            const pdfFile = req.files.pdfFile;
-            console.log('Processing PDF file:', pdfFile.name);
+        if (req.files.pdfFile && req.files.pdfFile.length > 0) {
+            const pdfFile = req.files.pdfFile[0];
+            console.log('Processing PDF file:', pdfFile.originalname);
 
             try {
                 // Create a clean public_id without special characters
-                const cleanPdfFilename = pdfFile.name
+                const cleanPdfFilename = pdfFile.originalname
                     .replace(/[^a-zA-Z0-9._-]/g, '_')
                     .replace(/\s+/g, '_')
                     .toLowerCase();
 
-                const pdfUploadResult = await cloudinary.uploader.upload(pdfFile.tempFilePath, {
+                const pdfUploadResult = await cloudinary.uploader.upload(pdfFile.path, {
                     folder: `${process.env.CLOUDINARY_FOLDER || 'agricjournal'}/published-journals`,
                     resource_type: 'raw',
                     public_id: `${Date.now()}-${cleanPdfFilename}`,
@@ -1330,8 +1390,17 @@ const adminUploadJournal = async (req, res) => {
                 });
 
                 journalData.pdfCloudinaryUrl = pdfUploadResult.secure_url;
-                journalData.content_file_path = pdfFile.tempFilePath;
+                journalData.pdfFileId = pdfUploadResult.public_id;
+                journalData.content_file_path = pdfFile.path;
                 console.log('PDF uploaded to Cloudinary:', pdfUploadResult.secure_url);
+
+                // Clean up local file after successful upload
+                try {
+                    await fsPromises.unlink(pdfFile.path);
+                    console.log('Local PDF file cleaned up');
+                } catch (unlinkError) {
+                    console.error('Error cleaning up PDF file:', unlinkError);
+                }
             } catch (pdfError) {
                 console.error('Failed to upload PDF to Cloudinary:', pdfError);
                 return res.status(500).json({
@@ -1343,18 +1412,18 @@ const adminUploadJournal = async (req, res) => {
         }
 
         // Handle DOCX file upload to Cloudinary
-        if (req.files.docxFile) {
-            const docxFile = req.files.docxFile;
-            console.log('Processing DOCX file:', docxFile.name);
+        if (req.files.docxFile && req.files.docxFile.length > 0) {
+            const docxFile = req.files.docxFile[0];
+            console.log('Processing DOCX file:', docxFile.originalname);
 
             try {
                 // Create a clean public_id without special characters
-                const cleanDocxFilename = docxFile.name
+                const cleanDocxFilename = docxFile.originalname
                     .replace(/[^a-zA-Z0-9._-]/g, '_')
                     .replace(/\s+/g, '_')
                     .toLowerCase();
 
-                const docxUploadResult = await cloudinary.uploader.upload(docxFile.tempFilePath, {
+                const docxUploadResult = await cloudinary.uploader.upload(docxFile.path, {
                     folder: `${process.env.CLOUDINARY_FOLDER || 'agricjournal'}/published-journals`,
                     resource_type: 'raw',
                     public_id: `${Date.now()}-${cleanDocxFilename}`,
@@ -1367,10 +1436,19 @@ const adminUploadJournal = async (req, res) => {
                 });
 
                 journalData.docxCloudinaryUrl = docxUploadResult.secure_url;
+                journalData.docxFileId = docxUploadResult.public_id;
                 if (!journalData.content_file_path) {
-                    journalData.content_file_path = docxFile.tempFilePath;
+                    journalData.content_file_path = docxFile.path;
                 }
                 console.log('DOCX uploaded to Cloudinary:', docxUploadResult.secure_url);
+
+                // Clean up local file after successful upload
+                try {
+                    await fsPromises.unlink(docxFile.path);
+                    console.log('Local DOCX file cleaned up');
+                } catch (unlinkError) {
+                    console.error('Error cleaning up DOCX file:', unlinkError);
+                }
             } catch (docxError) {
                 console.error('Failed to upload DOCX to Cloudinary:', docxError);
                 return res.status(500).json({
