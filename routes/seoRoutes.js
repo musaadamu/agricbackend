@@ -1,26 +1,38 @@
 const express = require('express');
 const router = express.Router();
 const Journal = require('../models/Journal');
+const PublishedJournal = require('../models/PublishedJournal');
 
 // Generate sitemap.xml
 router.get('/sitemap.xml', async (req, res) => {
     try {
-        const baseUrl = process.env.FRONTEND_URL || 'https://agricfrontend.vercel.app';
-        
-        // Get all published journals
+        const baseUrl = process.env.FRONTEND_URL || 'https://www.jovete.com.ng';
+
+        // Get all published journals from main journal system
         const journals = await Journal.find({ status: 'published' })
             .select('_id publishedDate')
             .sort({ publishedDate: -1 });
+
+        // Get all published journals from published journal system
+        const publishedJournals = await PublishedJournal.find({ status: 'published' })
+            .select('_id publication_date')
+            .sort({ publication_date: -1 });
 
         // Static pages
         const staticPages = [
             { url: '', priority: '1.0', changefreq: 'weekly' },
             { url: '/journals', priority: '0.9', changefreq: 'daily' },
+            { url: '/published-journals', priority: '0.9', changefreq: 'daily' },
             { url: '/archive', priority: '0.8', changefreq: 'weekly' },
+            { url: '/published-journal-archive', priority: '0.8', changefreq: 'weekly' },
             { url: '/about', priority: '0.7', changefreq: 'monthly' },
-            { url: '/contact', priority: '0.6', changefreq: 'monthly' },
+            { url: '/contact', priority: '0.7', changefreq: 'monthly' },
             { url: '/guide', priority: '0.7', changefreq: 'monthly' },
-            { url: '/editorial-board', priority: '0.6', changefreq: 'monthly' }
+            { url: '/editorial-board', priority: '0.8', changefreq: 'monthly' },
+            { url: '/call-for-papers', priority: '0.7', changefreq: 'monthly' },
+            { url: '/published-journal-home', priority: '0.8', changefreq: 'weekly' },
+            { url: '/published-journal-search', priority: '0.6', changefreq: 'weekly' },
+            { url: '/published-journal-stats', priority: '0.6', changefreq: 'weekly' }
         ];
 
         // Build sitemap XML
@@ -38,15 +50,30 @@ router.get('/sitemap.xml', async (req, res) => {
     </url>`;
         });
 
-        // Add journal pages
+        // Add main journal pages
         journals.forEach(journal => {
-            const lastmod = journal.publishedDate ? 
-                new Date(journal.publishedDate).toISOString().split('T')[0] : 
+            const lastmod = journal.publishedDate ?
+                new Date(journal.publishedDate).toISOString().split('T')[0] :
                 new Date().toISOString().split('T')[0];
-            
+
             sitemap += `
     <url>
         <loc>${baseUrl}/journals/${journal._id}</loc>
+        <lastmod>${lastmod}</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>`;
+        });
+
+        // Add published journal pages
+        publishedJournals.forEach(journal => {
+            const lastmod = journal.publication_date ?
+                new Date(journal.publication_date).toISOString().split('T')[0] :
+                new Date().toISOString().split('T')[0];
+
+            sitemap += `
+    <url>
+        <loc>${baseUrl}/published-journals/${journal._id}</loc>
         <lastmod>${lastmod}</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
@@ -66,10 +93,16 @@ router.get('/sitemap.xml', async (req, res) => {
 
 // Generate robots.txt
 router.get('/robots.txt', (req, res) => {
-    const baseUrl = process.env.FRONTEND_URL || 'https://agricfrontend.vercel.app';
-    
-    const robots = `User-agent: *
+    const baseUrl = process.env.FRONTEND_URL || 'https://www.jovete.com.ng';
+
+    const robots = `# Robots.txt for JOVETE - Journal of Vocational Teacher Education
+# Domain: www.jovete.com.ng
+
+# Default rules for all bots
+User-agent: *
 Allow: /
+
+# Disallow private/admin areas
 Disallow: /admin/
 Disallow: /dashboard/
 Disallow: /login
@@ -78,14 +111,52 @@ Disallow: /forgotpassword
 Disallow: /resetpassword/
 Disallow: /updateprofile
 Disallow: /submission
+Disallow: /submit-journal
 Disallow: /manage-journals
+Disallow: /manage-published-journals
 Disallow: /journals/uploads
+Disallow: /published-journal-upload
+Disallow: /published-journal-bulk
+Disallow: /logout
+Disallow: /unauthorized
+Disallow: /test
+Disallow: /test-download
+Disallow: /test-both-systems
 
-# Sitemap
+# Sitemaps
 Sitemap: ${baseUrl}/api/seo/sitemap.xml
+Sitemap: ${baseUrl}/api/seo/pdf-sitemap.xml
 
-# Crawl-delay
-Crawl-delay: 1`;
+# Crawl-delay (be respectful to servers)
+Crawl-delay: 1
+
+# Specific bot instructions for Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+# Specific bot instructions for Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Specific bot instructions for Yahoo
+User-agent: Slurp
+Allow: /
+Crawl-delay: 2
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /`;
 
     res.set('Content-Type', 'text/plain');
     res.send(robots);
@@ -172,11 +243,71 @@ router.get('/journals-sitemap', async (req, res) => {
     }
 });
 
+// Generate PDF sitemap for search engines to index PDFs
+router.get('/pdf-sitemap.xml', async (req, res) => {
+    try {
+
+        // Get all published journals with PDF URLs
+        const journals = await Journal.find({ status: 'published', pdfCloudinaryUrl: { $exists: true, $ne: null } })
+            .select('_id title pdfCloudinaryUrl publishedDate')
+            .sort({ publishedDate: -1 });
+
+        // Get all published journals with PDF URLs
+        const publishedJournals = await PublishedJournal.find({ status: 'published', pdfCloudinaryUrl: { $exists: true, $ne: null } })
+            .select('_id title pdfCloudinaryUrl publication_date')
+            .sort({ publication_date: -1 });
+
+        // Build PDF sitemap XML
+        let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">`;
+
+        // Add main journal PDFs
+        journals.forEach(journal => {
+            const lastmod = journal.publishedDate ?
+                new Date(journal.publishedDate).toISOString().split('T')[0] :
+                new Date().toISOString().split('T')[0];
+
+            sitemap += `
+    <url>
+        <loc>${journal.pdfCloudinaryUrl}</loc>
+        <lastmod>${lastmod}</lastmod>
+        <changefreq>never</changefreq>
+        <priority>0.8</priority>
+    </url>`;
+        });
+
+        // Add published journal PDFs
+        publishedJournals.forEach(journal => {
+            const lastmod = journal.publication_date ?
+                new Date(journal.publication_date).toISOString().split('T')[0] :
+                new Date().toISOString().split('T')[0];
+
+            sitemap += `
+    <url>
+        <loc>${journal.pdfCloudinaryUrl}</loc>
+        <lastmod>${lastmod}</lastmod>
+        <changefreq>never</changefreq>
+        <priority>0.8</priority>
+    </url>`;
+        });
+
+        sitemap += `
+</urlset>`;
+
+        res.set('Content-Type', 'application/xml');
+        res.send(sitemap);
+    } catch (error) {
+        console.error('Error generating PDF sitemap:', error);
+        res.status(500).json({ message: 'Error generating PDF sitemap' });
+    }
+});
+
 // Get RSS feed
 router.get('/rss.xml', async (req, res) => {
     try {
-        const baseUrl = process.env.FRONTEND_URL || 'https://agricfrontend.vercel.app';
-        
+        const baseUrl = process.env.FRONTEND_URL || 'https://www.jovete.com.ng';
+
         // Get latest 20 published journals
         const journals = await Journal.find({ status: 'published' })
             .sort({ publishedDate: -1 })
@@ -185,18 +316,18 @@ router.get('/rss.xml', async (req, res) => {
         let rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
     <channel>
-        <title>Nigerian Journal of Business and Entrepreneurship Education (NIJOBED)</title>
+        <title>JOVOTE - Journal of Vocational Teacher Education</title>
         <link>${baseUrl}</link>
-        <description>Latest research articles from NIJOBED - Nigeria's premier academic journal for business and entrepreneurship education</description>
+        <description>Latest research articles from JOVOTE - Nigeria's premier academic journal for vocational teacher education</description>
         <language>en-us</language>
         <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
         <atom:link href="${baseUrl}/api/seo/rss.xml" rel="self" type="application/rss+xml"/>`;
 
         journals.forEach(journal => {
-            const pubDate = journal.publishedDate ? 
-                new Date(journal.publishedDate).toUTCString() : 
+            const pubDate = journal.publishedDate ?
+                new Date(journal.publishedDate).toUTCString() :
                 new Date().toUTCString();
-            
+
             rss += `
         <item>
             <title><![CDATA[${journal.title}]]></title>
